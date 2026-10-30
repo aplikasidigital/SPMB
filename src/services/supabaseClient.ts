@@ -263,8 +263,8 @@ export class SupabaseService {
    * Berlangganan (Subscribe) perubahan data Realtime dari Supabase
    */
   static subscribeToRealtimeChanges(
-    onRegistrantUpdate?: () => void,
-    onSettingsUpdate?: () => void
+    onRegistrantUpdate?: (payload?: any) => void,
+    onSettingsUpdate?: (payload?: any) => void
   ): () => void {
     try {
       if (realtimeChannel) {
@@ -279,7 +279,7 @@ export class SupabaseService {
           (payload) => {
             console.log('[Supabase Realtime] Perubahan pendaftar terdeteksi:', payload.eventType);
             if (onRegistrantUpdate) {
-              onRegistrantUpdate();
+              onRegistrantUpdate(payload);
             }
           }
         )
@@ -289,7 +289,7 @@ export class SupabaseService {
           (payload) => {
             console.log('[Supabase Realtime] Perubahan pengaturan terdeteksi:', payload.eventType);
             if (onSettingsUpdate) {
-              onSettingsUpdate();
+              onSettingsUpdate(payload);
             }
           }
         )

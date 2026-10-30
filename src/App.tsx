@@ -67,6 +67,7 @@ export default function App() {
   const [printableRecapActive, setPrintableRecapActive] = useState(false);
   const [showPrintableBlankForm, setShowPrintableBlankForm] = useState(false);
   const [notificationTarget, setNotificationTarget] = useState<StudentRegistration | null>(null);
+  const [realtimeAlert, setRealtimeAlert] = useState<{ message: string; type: 'info' | 'success' } | null>(null);
 
   // Reload data helper
   const reloadAllData = () => {
@@ -100,9 +101,24 @@ export default function App() {
 
     // Subscribe to Realtime Postgres changes from Supabase
     const unsubscribeRealtime = SupabaseService.subscribeToRealtimeChanges(
-      () => {
+      (payload) => {
         // Realtime change in registrations detected
         StorageService.fetchFromSupabase().then(() => reloadAllData()).catch(() => {});
+        if (payload?.eventType === 'INSERT') {
+          const studentName = payload.new?.full_name || 'Calon Siswa Baru';
+          setRealtimeAlert({
+            message: `⚡ [Realtime Sync] Pendaftaran baru masuk: ${studentName}`,
+            type: 'success',
+          });
+          setTimeout(() => setRealtimeAlert(null), 5000);
+        } else if (payload?.eventType === 'UPDATE') {
+          const studentName = payload.new?.full_name || 'Data Pendaftar';
+          setRealtimeAlert({
+            message: `⚡ [Realtime Sync] Data/status ${studentName} telah diperbarui: ${payload.new?.status || 'Update'}`,
+            type: 'info',
+          });
+          setTimeout(() => setRealtimeAlert(null), 5000);
+        }
       },
       () => {
         // Realtime change in settings detected
@@ -110,6 +126,11 @@ export default function App() {
           if (res.success && res.data) {
             StorageService.saveSettings(res.data);
             reloadAllData();
+            setRealtimeAlert({
+              message: '⚡ [Realtime Sync] Pengaturan sekolah atau pengumuman berhasil disinkronkan!',
+              type: 'info',
+            });
+            setTimeout(() => setRealtimeAlert(null), 5000);
           }
         }).catch(() => {});
       }
@@ -423,6 +444,23 @@ export default function App() {
           majors={majors}
           onClose={() => setShowPrintableBlankForm(false)}
         />
+      )}
+
+      {/* Floating Realtime Toast Notification */}
+      {realtimeAlert && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm sm:max-w-md bg-slate-950/95 text-white border border-emerald-500/60 backdrop-blur-md px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition transform animate-fade-in">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></div>
+          <div className="text-xs font-bold flex-1 leading-snug">
+            {realtimeAlert.message}
+          </div>
+          <button 
+            type="button"
+            onClick={() => setRealtimeAlert(null)} 
+            className="text-slate-400 hover:text-white text-xs font-bold p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
       )}
     </div>
   );
