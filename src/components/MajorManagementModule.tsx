@@ -26,7 +26,9 @@ import {
   ShieldAlert, 
   X,
   Search,
-  BookOpen
+  BookOpen,
+  RefreshCw,
+  Save
 } from 'lucide-react';
 
 interface Props {
@@ -46,6 +48,7 @@ export const MajorManagementModule: React.FC<Props> = ({
   const [localTracks, setLocalTracks] = useState<AdmissionTrack[]>(StorageService.getTracks());
   const [localFees, setLocalFees] = useState<FeeCategory[]>(StorageService.getFees());
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Search filter
   const [search, setSearch] = useState('');
@@ -140,6 +143,7 @@ export const MajorManagementModule: React.FC<Props> = ({
     const careersArray = mCareers.split(',').map(s => s.trim()).filter(Boolean);
     const facilitiesArray = mFacilities.split(',').map(s => s.trim()).filter(Boolean);
 
+    setIsSaving(true);
     try {
       if (editingMajor) {
         const updated = StorageService.updateMajor(
@@ -158,7 +162,7 @@ export const MajorManagementModule: React.FC<Props> = ({
           },
           activeAdmin.fullName
         );
-        if (updated) showToast(`Jurusan "${updated.name}" berhasil diperbarui.`);
+        if (updated) showToast(`✓ Jurusan "${updated.name}" berhasil diperbarui.`);
       } else {
         const created = StorageService.addMajor(
           {
@@ -175,7 +179,7 @@ export const MajorManagementModule: React.FC<Props> = ({
           },
           activeAdmin.fullName
         );
-        showToast(`Jurusan baru "${created.name}" berhasil ditambahkan.`);
+        showToast(`✓ Jurusan baru "${created.name}" berhasil ditambahkan.`);
       }
 
       setIsMajorModalOpen(false);
@@ -183,6 +187,8 @@ export const MajorManagementModule: React.FC<Props> = ({
       if (onRefreshData) onRefreshData();
     } catch (err: any) {
       setMajorError(err?.message || 'Gagal menyimpan data jurusan.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -883,9 +889,11 @@ export const MajorManagementModule: React.FC<Props> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md"
+                  disabled={isSaving}
+                  className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold rounded-xl shadow-md cursor-pointer transition"
                 >
-                  {editingMajor ? 'Simpan Perubahan' : 'Tambahkan Jurusan'}
+                  {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  <span>{isSaving ? 'Menyimpan...' : (editingMajor ? 'Simpan Perubahan' : 'Tambahkan Jurusan')}</span>
                 </button>
               </div>
             </form>

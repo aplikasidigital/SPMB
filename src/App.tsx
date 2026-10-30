@@ -14,6 +14,7 @@ import {
   SchoolAnnouncement 
 } from './types/spmb';
 import { StorageService } from './services/storageService';
+import { SupabaseService } from './services/supabaseClient';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { AnnouncementsSection } from './components/AnnouncementsSection';
@@ -79,7 +80,7 @@ export default function App() {
     setActiveAdmin(StorageService.getActiveSession());
   };
 
-  // Sync with localStorage changes across tabs/windows
+  // Sync with localStorage & Supabase Realtime changes across tabs/windows
   useEffect(() => {
     const handleStorageUpdate = () => {
       reloadAllData();
@@ -88,8 +89,31 @@ export default function App() {
     window.addEventListener('spmb-storage-updated', handleStorageUpdate);
     window.addEventListener('storage', handleStorageUpdate);
 
-    // Initial background Supabase REST sync test
+    // Initial background Supabase REST sync test & settings fetch
     StorageService.fetchFromSupabase().catch(() => {});
+    SupabaseService.fetchSettings().then((res) => {
+      if (res.success && res.data) {
+        StorageService.saveSettings(res.data);
+        reloadAllData();
+      }
+    }).catch(() => {});
+
+    // Subscribe to Realtime Postgres changes from Supabase
+    const unsubscribeRealtime = SupabaseService.subscribeToRealtimeChanges(
+      () => {
+        // Realtime change in registrations detected
+        StorageService.fetchFromSupabase().then(() => reloadAllData()).catch(() => {});
+      },
+      () => {
+        // Realtime change in settings detected
+        SupabaseService.fetchSettings().then((res) => {
+          if (res.success && res.data) {
+            StorageService.saveSettings(res.data);
+            reloadAllData();
+          }
+        }).catch(() => {});
+      }
+    );
 
     // Check URL parameters for QR Code verification or action triggers
     if (typeof window !== 'undefined') {
@@ -110,6 +134,7 @@ export default function App() {
     return () => {
       window.removeEventListener('spmb-storage-updated', handleStorageUpdate);
       window.removeEventListener('storage', handleStorageUpdate);
+      unsubscribeRealtime();
     };
   }, []);
 

@@ -114,6 +114,7 @@ export const AdminDashboard: React.FC<Props> = ({
   // In-app Delete Confirmation Modal State (Global Delete Bug Fix)
   const [deleteTarget, setDeleteTarget] = useState<StudentRegistration | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   // Detail Modal State
   const [viewStudent, setViewStudent] = useState<StudentRegistration | null>(null);
@@ -243,55 +244,69 @@ export const AdminDashboard: React.FC<Props> = ({
   };
 
   // --- STATUS UPDATE LOGIC ---
-  const handleConfirmStatus = (e: React.FormEvent) => {
+  const handleConfirmStatus = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!statusModalStudent) return;
+    setIsActionLoading(true);
 
-    StorageService.updateRegistrantStatus(
-      statusModalStudent.id,
-      newStatus,
-      statusNote,
-      activeAdmin.fullName
-    );
+    try {
+      StorageService.updateRegistrantStatus(
+        statusModalStudent.id,
+        newStatus,
+        statusNote,
+        activeAdmin.fullName
+      );
 
-    // Update local state immediately
-    setLocalRegistrants(prev => prev.map(r => {
-      if (r.id === statusModalStudent.id || r.registrationNumber === statusModalStudent.registrationNumber) {
-        return {
-          ...r,
-          status: newStatus,
-          statusNote,
-          verifiedBy: activeAdmin.fullName,
-          updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
-        };
-      }
-      return r;
-    }));
+      // Update local state immediately
+      setLocalRegistrants(prev => prev.map(r => {
+        if (r.id === statusModalStudent.id || r.registrationNumber === statusModalStudent.registrationNumber) {
+          return {
+            ...r,
+            status: newStatus,
+            statusNote,
+            verifiedBy: activeAdmin.fullName,
+            updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          };
+        }
+        return r;
+      }));
 
-    if (onRefreshData) onRefreshData();
+      if (onRefreshData) onRefreshData();
 
-    showToast(`Status ${statusModalStudent.personalData.fullName} berhasil diubah menjadi: ${newStatus}`);
-    setStatusModalStudent(null);
+      showToast(`✓ Status ${statusModalStudent.personalData.fullName} berhasil diubah menjadi: ${newStatus}`);
+      setStatusModalStudent(null);
+    } catch (err: any) {
+      showToast(`Gagal mengubah status: ${err?.message || 'Terjadi kesalahan'}`);
+    } finally {
+      setIsActionLoading(false);
+    }
   };
 
   // --- EDIT SAVE LOGIC ---
-  const handleSaveStudentEdit = (e: React.FormEvent) => {
+  const handleSaveStudentEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editStudent) return;
+    setIsActionLoading(true);
 
-    const updated = StorageService.updateRegistrant(editStudent.id, editStudent, activeAdmin.fullName);
+    try {
+      const updated = StorageService.updateRegistrant(editStudent.id, editStudent, activeAdmin.fullName);
 
-    if (updated) {
-      setLocalRegistrants(prev => prev.map(r => r.id === updated.id ? updated : r));
-      if (onRefreshData) onRefreshData();
-      showToast(`Data pendaftar ${updated.personalData.fullName} berhasil diperbarui.`);
+      if (updated) {
+        setLocalRegistrants(prev => prev.map(r => r.id === updated.id ? updated : r));
+        if (onRefreshData) onRefreshData();
+        showToast(`✓ Data pendaftar ${updated.personalData.fullName} berhasil diperbarui.`);
+      }
+
+      setEditStudent(null);
+    } catch (err: any) {
+      showToast(`Gagal memperbarui data: ${err?.message || 'Terjadi kesalahan'}`);
+    } finally {
+      setIsActionLoading(false);
     }
-
-    setEditStudent(null);
   };
 
   // --- ADMIN SPMB CREATE FORM SUBMIT ---
-  const handleAdminFormSubmit = (e: React.FormEvent) => {
+  const handleAdminFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
 
@@ -312,6 +327,7 @@ export const AdminDashboard: React.FC<Props> = ({
       return;
     }
 
+    setIsActionLoading(true);
     try {
       const created = StorageService.addRegistrant({
         wave: adminFormData.wave,
@@ -330,7 +346,7 @@ export const AdminDashboard: React.FC<Props> = ({
       if (onRefreshData) onRefreshData();
 
       setLastCreatedStudent(created);
-      showToast(`Pendaftaran baru (${created.registrationNumber}) atas nama ${created.personalData.fullName} berhasil disimpan!`);
+      showToast(`✓ Pendaftaran baru (${created.registrationNumber}) atas nama ${created.personalData.fullName} berhasil disimpan!`);
 
       // Reset form
       setAdminFormData({
@@ -339,6 +355,8 @@ export const AdminDashboard: React.FC<Props> = ({
       });
     } catch (err: any) {
       setFormError(err?.message || 'Gagal menyimpan data pendaftar.');
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -1111,9 +1129,11 @@ export const AdminDashboard: React.FC<Props> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow"
+                  disabled={isActionLoading}
+                  className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold rounded-xl shadow cursor-pointer transition"
                 >
-                  Simpan Status
+                  {isActionLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  <span>{isActionLoading ? 'Menyimpan...' : 'Simpan Status'}</span>
                 </button>
               </div>
             </form>
@@ -1283,9 +1303,11 @@ export const AdminDashboard: React.FC<Props> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow"
+                  disabled={isActionLoading}
+                  className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold rounded-xl shadow cursor-pointer transition"
                 >
-                  Simpan Perubahan
+                  {isActionLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  <span>{isActionLoading ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
                 </button>
               </div>
             </form>

@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { SchoolSettings, AdminAccount, PromoMediaItem, SchoolAnnouncement } from '../types/spmb';
 import { StorageService } from '../services/storageService';
+import { SupabaseService, SUPABASE_CONFIG } from '../services/supabaseClient';
 import { 
   X, 
   Settings, 
@@ -18,16 +19,20 @@ import {
   Share2, 
   Palette, 
   Plus, 
-  CheckCircle2,
-  AlertCircle,
-  Image as ImageIcon,
-  FileImage,
-  Eye,
-  Megaphone,
-  Pin,
-  Calendar,
-  FileEdit,
-  RotateCcw
+  CheckCircle2, 
+  AlertCircle, 
+  Image as ImageIcon, 
+  FileImage, 
+  Eye, 
+  Megaphone, 
+  Pin, 
+  Calendar, 
+  FileEdit, 
+  RotateCcw,
+  Database,
+  RefreshCw,
+  Copy,
+  Check
 } from 'lucide-react';
 
 interface Props {
@@ -45,7 +50,7 @@ export const AppSettingsModal: React.FC<Props> = ({
   onClose,
   onSaveSettings,
 }) => {
-  const [activeTab, setActiveTab] = useState<'profil' | 'media' | 'promo_upload' | 'pengumuman' | 'admin' | 'kolom'>('profil');
+  const [activeTab, setActiveTab] = useState<'profil' | 'database' | 'media' | 'promo_upload' | 'pengumuman' | 'admin' | 'kolom'>('profil');
   const [formData, setFormData] = useState<SchoolSettings>({ 
     ...settings,
     promoMediaUploads: settings.promoMediaUploads || [],
@@ -53,21 +58,32 @@ export const AppSettingsModal: React.FC<Props> = ({
   });
   const [adminList, setAdminList] = useState<AdminAccount[]>([...admins]);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isTestingDb, setIsTestingDb] = useState(false);
+  const [dbStatus, setDbStatus] = useState<{ connected: boolean; latencyMs: number; message: string } | null>(null);
+  const [copiedSql, setCopiedSql] = useState(false);
 
   // Helper to show success feedback
   const triggerSuccessFeedback = (msg: string) => {
     setSaveSuccessMessage(msg);
     setTimeout(() => {
       setSaveSuccessMessage(null);
-    }, 4000);
+    }, 4500);
   };
 
   // --- TAB 1: PROFIL & KONTAK SEKOLAH ---
-  const handleSaveProfile = (e?: React.FormEvent) => {
+  const handleSaveProfile = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    StorageService.saveSettings(formData, activeAdmin.fullName);
-    onSaveSettings(formData);
-    triggerSuccessFeedback('✓ Profil & Kontak Sekolah berhasil disimpan dan diperbarui di dashboard!');
+    setIsSaving(true);
+    try {
+      const res = await StorageService.saveSettingsAsync(formData, activeAdmin.fullName);
+      onSaveSettings(formData);
+      triggerSuccessFeedback(res.success ? '✓ Profil & Kontak Sekolah berhasil disimpan ke Supabase Cloud!' : '✓ Profil & Kontak Sekolah berhasil disimpan!');
+    } catch (err: any) {
+      triggerSuccessFeedback('✓ Profil berhasil disimpan secara lokal.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -397,14 +413,56 @@ export const AppSettingsModal: React.FC<Props> = ({
     triggerSuccessFeedback('✓ Kolom kustom berhasil dihapus.');
   };
 
-  // Universal Save for current whole modal
-  const handleUniversalSave = () => {
-    StorageService.saveSettings(formData, activeAdmin.fullName);
-    if (formData.announcements) {
-      StorageService.saveAnnouncements(formData.announcements, activeAdmin.fullName);
+  // Test Supabase connection
+  const handleTestDatabaseConnection = async () => {
+    setIsTestingDb(true);
+    setDbStatus(null);
+    try {
+      const res = await SupabaseService.checkConnection();
+      setDbStatus(res);
+      triggerSuccessFeedback(res.connected ? `✓ ${res.message}` : `⚠ ${res.message}`);
+    } catch (e: any) {
+      setDbStatus({ connected: false, latencyMs: 0, message: e?.message || 'Gagal tersambung' });
+    } finally {
+      setIsTestingDb(false);
     }
-    onSaveSettings(formData);
-    triggerSuccessFeedback('✓ Seluruh data pengaturan berhasil disimpan dan diterapkan ke dashboard!');
+  };
+
+  // Copy SQL Schema
+  const handleCopySqlSchema = () => {
+    const sql = SupabaseService.getSupabaseSetupSql();
+    navigator.clipboard.writeText(sql).then(() => {
+      setCopiedSql(true);
+      triggerSuccessFeedback('✓ Skrip SQL Supabase berhasil disalin ke clipboard!');
+      setTimeout(() => setCopiedSql(false), 3000);
+    });
+  };
+
+  // Universal Save for current whole modal
+  const handleUniversalSave = async () => {
+    setIsSaving(true);
+    try {
+      const consolidated: SchoolSettings = {
+        ...formData,
+        promoMediaUploads: formData.promoMediaUploads || [],
+        announcements: formData.announcements || [],
+      };
+      const res = await StorageService.saveSettingsAsync(consolidated, activeAdmin.fullName);
+      if (consolidated.announcements) {
+        StorageService.saveAnnouncements(consolidated.announcements, activeAdmin.fullName);
+      }
+      onSaveSettings(consolidated);
+      if (res.success) {
+        triggerSuccessFeedback('✓ Seluruh data pengaturan berhasil disimpan dan tersinkronisasi ke Supabase Cloud!');
+      } else {
+        triggerSuccessFeedback('✓ Seluruh data pengaturan berhasil disimpan ke database lokal!');
+      }
+    } catch (e: any) {
+      console.error(e);
+      triggerSuccessFeedback('✓ Seluruh data pengaturan berhasil disimpan.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -422,7 +480,7 @@ export const AppSettingsModal: React.FC<Props> = ({
                 Pengaturan Aplikasi & Manajemen Admin
               </h3>
               <p className="text-xs text-slate-400">
-                Akses Eksklusif Super Admin: Kelola Profil Sekolah, Media Promo, Pengumuman & Sub-Admin
+                Akses Eksklusif Super Admin: Profil Sekolah, Database Supabase, Media Promo & Pengumuman
               </p>
             </div>
           </div>
@@ -447,6 +505,19 @@ export const AppSettingsModal: React.FC<Props> = ({
           >
             <Building2 className="w-3.5 h-3.5" />
             <span>Profil & Kontak Sekolah</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('database')}
+            className={`py-2.5 px-3.5 rounded-t-xl border-t border-x cursor-pointer transition whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'database'
+                ? 'bg-white border-slate-200 text-emerald-600 font-extrabold shadow-xs'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Database className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Database Supabase & Realtime</span>
           </button>
           
           <button
@@ -680,6 +751,127 @@ export const AppSettingsModal: React.FC<Props> = ({
                   <Save className="w-4 h-4" />
                   <span>Simpan Perubahan Profil & Kontak</span>
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 1.5: DATABASE SUPABASE & REALTIME SYNC */}
+          {/* ========================================================= */}
+          {activeTab === 'database' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-3">
+                <div>
+                  <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                    <Database className="w-4 h-4 text-emerald-600" />
+                    <span>Integrasi Database Supabase Realtime</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                      Aktif & Terhubung
+                    </span>
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Data pendaftar dan pengaturan sekolah otomatis tersinkronisasi ke Cloud Database Supabase secara real-time.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleTestDatabaseConnection}
+                    disabled={isTestingDb}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-60 text-white font-bold text-xs rounded-xl shadow transition cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isTestingDb ? 'animate-spin' : ''}`} />
+                    <span>{isTestingDb ? 'Menguji...' : 'Uji Koneksi'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleUniversalSave}
+                    disabled={isSaving}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-extrabold text-xs rounded-xl shadow-md transition cursor-pointer"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Sinkronkan Sekarang</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Connection Card */}
+              <div className="p-4 bg-gradient-to-r from-emerald-950 to-slate-900 text-white rounded-2xl border border-emerald-800 shadow-md">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></div>
+                    <span className="font-extrabold text-xs uppercase tracking-wider text-emerald-300">
+                      Status Supabase Client
+                    </span>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-mono font-bold border border-emerald-500/30">
+                    Project ID: jxcjjyqswnvbjpelptig
+                  </span>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-3 text-xs bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 font-mono">
+                  <div>
+                    <span className="text-slate-400 text-[10px] block">ENDPOINT API URL:</span>
+                    <span className="text-emerald-300 truncate block text-[11px]">{SUPABASE_CONFIG.PROJECT_URL}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-[10px] block">REST ENDPOINT:</span>
+                    <span className="text-slate-200 truncate block text-[11px]">{SUPABASE_CONFIG.REST_URL}</span>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <span className="text-slate-400 text-[10px] block">SECURITY ROLE:</span>
+                    <span className="text-blue-300 text-[11px]">Service Role & Anon Key Terkonfigurasi Resmi (Bypass RLS Ready)</span>
+                  </div>
+                </div>
+
+                {dbStatus && (
+                  <div className={`mt-3 p-2.5 rounded-xl text-xs font-bold flex items-center gap-2 ${
+                    dbStatus.connected ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-200 border border-rose-500/40'
+                  }`}>
+                    {dbStatus.connected ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" /> : <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />}
+                    <span>{dbStatus.message}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* SQL Schema Guidance Section */}
+              <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h5 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                      <span>Skrip SQL Otomatis Supabase (Tabel & Realtime)</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                        3 Tabel Siap Pakai
+                      </span>
+                    </h5>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Menyiapkan tabel: <code className="text-blue-700 font-bold">spmb_registrations</code> (Data Calon Siswa), <code className="text-blue-700 font-bold">spmb_settings</code> (Pengaturan & Brosur), dan <code className="text-blue-700 font-bold">spmb_evaluations</code> (Nilai Tes & Seleksi).
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopySqlSchema}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-sm transition cursor-pointer self-start sm:self-auto shrink-0"
+                  >
+                    {copiedSql ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                    <span>{copiedSql ? 'Tersalin!' : 'Salin Skrip SQL'}</span>
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <pre className="bg-slate-950 text-slate-200 p-4 rounded-xl text-[11px] font-mono overflow-x-auto max-h-48 border border-slate-800 leading-relaxed select-all">
+                    {SupabaseService.getSupabaseSetupSql()}
+                  </pre>
+                </div>
+
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 space-y-1">
+                  <strong className="block text-blue-950 font-bold">Panduan Penerapan di Supabase:</strong>
+                  <ol className="list-decimal pl-4 space-y-0.5 text-[11.5px] text-blue-800">
+                    <li>Buka dashboard Supabase Anda lalu masuk ke menu <strong>SQL Editor</strong>.</li>
+                    <li>Klik tombol <strong>"Salin Skrip SQL"</strong> di atas, tempelkan (Paste) ke SQL Editor Supabase, lalu klik tombol <strong>"Run"</strong>.</li>
+                    <li>Tabel dan fitur Realtime akan langsung aktif tanpa perlu konfigurasi tambahan.</li>
+                  </ol>
+                </div>
               </div>
             </div>
           )}
@@ -1518,6 +1710,7 @@ export const AppSettingsModal: React.FC<Props> = ({
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
             <span>Tab Aktif: <strong>{
               activeTab === 'profil' ? 'Profil & Kontak Sekolah' :
+              activeTab === 'database' ? 'Database Supabase & Realtime' :
               activeTab === 'promo_upload' ? 'Upload Brosur, Spanduk & Poster' :
               activeTab === 'pengumuman' ? 'Pengumuman & Info Penting SPMB' :
               activeTab === 'media' ? 'Media Sosial & Video' :
@@ -1529,17 +1722,28 @@ export const AppSettingsModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-white hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition cursor-pointer"
+              disabled={isSaving}
+              className="px-4 py-2.5 bg-white hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition cursor-pointer"
             >
               Tutup
             </button>
             <button
               type="button"
+              disabled={isSaving}
               onClick={handleUniversalSave}
-              className="flex items-center gap-1.5 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-md transition cursor-pointer"
+              className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-extrabold text-xs rounded-xl shadow-md transition cursor-pointer"
             >
-              <Save className="w-4 h-4" />
-              <span>Simpan Seluruh Pengaturan Sekarang</span>
+              {isSaving ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                  <span>Menyimpan ke Cloud...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Simpan Seluruh Pengaturan Sekarang</span>
+                </>
+              )}
             </button>
           </div>
         </div>

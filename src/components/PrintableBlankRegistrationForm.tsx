@@ -63,9 +63,9 @@ export const PrintableBlankRegistrationForm: React.FC<Props> = ({
         className="w-full max-w-[210mm] min-h-[297mm] bg-white text-black p-8 sm:p-12 shadow-2xl rounded-none relative box-border text-[11px] leading-snug print:shadow-none print:p-8 print:m-0 print:w-full print:max-w-none print:rounded-none"
         style={{ fontFamily: "'Times New Roman', Times, serif" }}
       >
-        {/* KOP SURAT RESMI */}
-        <div className="border-b-4 border-double border-black pb-3 mb-4 flex items-center gap-4">
-          <div className="w-20 h-20 shrink-0 flex items-center justify-center p-1">
+        {/* KOP SURAT RESMI (KOMPAK & FORMAL EFISIEN) */}
+        <div className="border-b-2 border-black pb-2 mb-2.5 flex items-center justify-between gap-3">
+          <div className="w-14 h-14 shrink-0 flex items-center justify-center p-0.5">
             <img 
               src={settings.logoUrl} 
               alt="Logo" 
@@ -73,24 +73,29 @@ export const PrintableBlankRegistrationForm: React.FC<Props> = ({
               onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
             />
           </div>
-          <div className="text-center flex-1 pr-4">
-            <h3 className="text-[12px] font-bold uppercase tracking-wider">
+          <div className="text-center flex-1 px-2">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest leading-none mb-0.5">
               YAYASAN PENDIDIKAN LENTERA BANGSA
             </h3>
-            <h1 className="text-[17px] font-black uppercase tracking-tight text-black">
+            <h1 className="text-[16px] font-black uppercase tracking-tight text-black leading-tight">
               {settings.schoolName}
             </h1>
-            <p className="text-[10px] font-bold uppercase tracking-wider">
-              {settings.accreditation} — NPSN: {settings.npsn}
+            <p className="text-[9.5px] font-bold uppercase tracking-wider my-0.5">
+              {settings.accreditation} • NPSN: {settings.npsn}
             </p>
-            <p className="text-[10px] italic">
+            <p className="text-[9px] italic leading-tight">
               {settings.address}
             </p>
-            <p className="text-[10px]">
-              Telp: {settings.phone} | WA: 0813-1442-0312 | Email: {settings.email}
+            <p className="text-[8.5px] text-gray-700 leading-tight">
+              Telp: {settings.phone} | WA: +{settings.whatsappNumber} | Email: {settings.email} | Web: {settings.website || 'smklb2.sch.id'}
             </p>
           </div>
+          <div className="w-14 h-14 shrink-0 flex flex-col items-center justify-center border border-dashed border-gray-400 p-1 text-center">
+            <span className="text-[7.5px] font-bold block">BLANKO</span>
+            <span className="text-[7px] text-gray-500 font-mono">OFFLINE</span>
+          </div>
         </div>
+        <div className="border-b border-black -mt-2 mb-2"></div>
 
         {/* TITLE */}
         <div className="text-center mb-3">

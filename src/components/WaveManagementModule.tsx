@@ -21,7 +21,8 @@ import {
   Tag, 
   Flame, 
   ShieldAlert, 
-  RotateCcw
+  RotateCcw,
+  RefreshCw
 } from 'lucide-react';
 
 interface Props {
@@ -37,6 +38,7 @@ export const WaveManagementModule: React.FC<Props> = ({
 }) => {
   const [localWaves, setLocalWaves] = useState<SchoolWave[]>(waves);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -99,7 +101,7 @@ export const WaveManagementModule: React.FC<Props> = ({
     setIsModalOpen(true);
   };
 
-  const handleSaveWave = (e: React.FormEvent) => {
+  const handleSaveWave = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
 
@@ -112,6 +114,7 @@ export const WaveManagementModule: React.FC<Props> = ({
       return;
     }
 
+    setIsSaving(true);
     try {
       if (editingWave) {
         // Update existing wave
@@ -133,7 +136,7 @@ export const WaveManagementModule: React.FC<Props> = ({
         );
 
         if (updated) {
-          showToast(`Gelombang "${updated.name}" berhasil diperbarui.`);
+          showToast(`✓ Gelombang "${updated.name}" berhasil diperbarui.`);
         }
       } else {
         // Create new wave
@@ -152,7 +155,7 @@ export const WaveManagementModule: React.FC<Props> = ({
           },
           activeAdmin.fullName
         );
-        showToast(`Gelombang baru "${created.name}" berhasil ditambahkan.`);
+        showToast(`✓ Gelombang baru "${created.name}" berhasil ditambahkan.`);
       }
 
       setIsModalOpen(false);
@@ -160,6 +163,8 @@ export const WaveManagementModule: React.FC<Props> = ({
       if (onRefreshData) onRefreshData();
     } catch (err: any) {
       setFormError(err?.message || 'Gagal menyimpan gelombang pendaftaran.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -526,9 +531,11 @@ export const WaveManagementModule: React.FC<Props> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md"
+                  disabled={isSaving}
+                  className="flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold rounded-xl shadow-md cursor-pointer transition"
                 >
-                  {editingWave ? 'Simpan Perubahan' : 'Tambahkan Gelombang'}
+                  {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : null}
+                  <span>{isSaving ? 'Menyimpan...' : (editingWave ? 'Simpan Perubahan' : 'Tambahkan Gelombang')}</span>
                 </button>
               </div>
             </form>

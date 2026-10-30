@@ -19,12 +19,8 @@ const STORAGE_KEYS = {
   ANNOUNCEMENTS: 'spmb_lb2_announcements_v1',
 };
 
-// Supabase Credentials provided by user
-export const SUPABASE_CONFIG = {
-  REST_URL: 'https://qixphlsusrcquqncnbma.supabase.co/rest/v1',
-  ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpeHBobHN1c3JjcXVxbmNuYm1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NTYzMzksImV4cCI6MjEwNzEzMjMzOX0.ICBw1GUTFuI0vm0fVuB1nw0WofVy49V3wL5fGAmNmFg',
-  PUBLISHABLE_KEY: 'sb_publishable_ywK7tqaqHBrwStA72uN96w_j2M6nwfB',
-};
+import { SupabaseService, SUPABASE_CONFIG } from './supabaseClient';
+export { SUPABASE_CONFIG };
 
 export class StorageService {
   // Helper to dispatch global event
@@ -53,9 +49,21 @@ export class StorageService {
       localStorage.setItem(STORAGE_KEYS.REGISTRANTS, JSON.stringify(list));
       this.notifyChange();
       // Background Supabase Sync attempt
-      this.syncRegistrantsToSupabase(list).catch(() => {});
+      SupabaseService.syncRegistrants(list).catch(() => {});
     } catch (e) {
       console.error('Failed to save registrants', e);
+    }
+  }
+
+  static async saveRegistrantsAsync(list: StudentRegistration[]): Promise<{ success: boolean; message: string }> {
+    try {
+      localStorage.setItem(STORAGE_KEYS.REGISTRANTS, JSON.stringify(list));
+      this.notifyChange();
+      const res = await SupabaseService.syncRegistrants(list);
+      return res;
+    } catch (e: any) {
+      console.error('Failed to save registrants', e);
+      return { success: false, message: e?.message || 'Gagal menyimpan ke penyimpanan.' };
     }
   }
 
@@ -565,6 +573,29 @@ export class StorageService {
       details: 'Pengaturan profil sekolah, kontak, media promosi, atau pengumuman telah diperbarui.',
       type: 'SETTINGS_CHANGE',
     });
+    // Background Supabase Sync attempt
+    SupabaseService.syncSettings(settings).catch(() => {});
+  }
+
+  static async saveSettingsAsync(settings: SchoolSettings, adminName = 'Admin Utama'): Promise<{ success: boolean; message: string }> {
+    try {
+      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+      if (settings.announcements) {
+        localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(settings.announcements));
+      }
+      this.notifyChange();
+      this.addLog({
+        action: 'Perubahan Pengaturan Aplikasi',
+        performedBy: adminName,
+        details: 'Pengaturan profil sekolah, kontak, media promosi, atau pengumuman telah diperbarui.',
+        type: 'SETTINGS_CHANGE',
+      });
+      const res = await SupabaseService.syncSettings(settings);
+      return res;
+    } catch (e: any) {
+      console.error('Failed to save settings async', e);
+      return { success: false, message: e?.message || 'Gagal menyimpan pengaturan.' };
+    }
   }
 
   // --- ANNOUNCEMENTS (PENGUMUMAN & INFO PENTING) ---
@@ -740,80 +771,14 @@ export class StorageService {
 
   // --- SUPABASE REST SYNC ---
   static async syncRegistrantsToSupabase(list: StudentRegistration[]): Promise<{ success: boolean; message: string }> {
-    try {
-      const url = `${SUPABASE_CONFIG.REST_URL}/spmb_registrations`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_CONFIG.ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates',
-        },
-        body: JSON.stringify(list.map(r => ({
-          registration_number: r.registrationNumber,
-          full_name: r.personalData.fullName,
-          nisn: r.personalData.nisn,
-          phone: r.personalData.phoneWhatsApp,
-          email: r.personalData.email,
-          major_first: r.majorChoice.firstChoice,
-          major_second: r.majorChoice.secondChoice,
-          status: r.status,
-          created_at: r.createdAt,
-          updated_at: r.updatedAt,
-          data_payload: r,
-        }))),
-      });
-
-      if (!response.ok) {
-        // Table might not exist or need schema creation in remote supabase
-        return {
-          success: false,
-          message: `Supabase REST Response: HTTP ${response.status} (${response.statusText}). Data tersimpan aman di Local DB Cache.`,
-        };
-      }
-
-      return {
-        success: true,
-        message: 'Berhasil tersinkronisasi langsung ke Supabase Cloud REST Database.',
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        message: `Koneksi Supabase: ${error?.message || 'Offline fallback aktif'}. Data aman di penyimpanan lokal berkecepatan tinggi.`,
-      };
-    }
+    return SupabaseService.syncRegistrants(list);
   }
 
   static async fetchFromSupabase(): Promise<{ success: boolean; data?: StudentRegistration[]; message: string }> {
-    try {
-      const url = `${SUPABASE_CONFIG.REST_URL}/spmb_registrations?select=*&order=created_at.desc`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'apikey': SUPABASE_CONFIG.ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
-          'Accept': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        return { success: false, message: `Status ${response.status}: Menggunakan Local DB Cache` };
-      }
-
-      const rows = await response.json();
-      if (Array.isArray(rows) && rows.length > 0) {
-        const mapped: StudentRegistration[] = rows
-          .map((row: any) => row.data_payload)
-          .filter(Boolean);
-        if (mapped.length > 0) {
-          this.saveRegistrants(mapped);
-          return { success: true, data: mapped, message: `Berhasil mengunduh ${mapped.length} data dari Supabase Cloud.` };
-        }
-      }
-      return { success: true, message: 'Supabase siap dan terhubung.' };
-    } catch (err: any) {
-      return { success: false, message: err?.message || 'Menggunakan offline cache.' };
+    const res = await SupabaseService.fetchRegistrants();
+    if (res.success && res.data && res.data.length > 0) {
+      this.saveRegistrants(res.data);
     }
+    return res;
   }
 }

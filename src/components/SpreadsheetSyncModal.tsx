@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { StudentRegistration, SchoolSettings } from '../types/spmb';
 import { StorageService, SUPABASE_CONFIG } from '../services/storageService';
+import { SupabaseService } from '../services/supabaseClient';
 import { 
   X, 
   FileSpreadsheet, 
@@ -37,6 +38,7 @@ export const SpreadsheetSyncModal: React.FC<Props> = ({
   const [syncingSupabase, setSyncingSupabase] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
   const [copiedCsv, setCopiedCsv] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
 
   // 1. Export Excel (.xlsx) using SheetJS
   const handleExportExcel = () => {
@@ -248,7 +250,7 @@ export const SpreadsheetSyncModal: React.FC<Props> = ({
 
           {/* Supabase Cloud REST Status */}
           <div className="p-5 bg-slate-900 text-white rounded-2xl border border-slate-800 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Cloud className="w-5 h-5 text-cyan-400" />
                 <div>
@@ -258,14 +260,28 @@ export const SpreadsheetSyncModal: React.FC<Props> = ({
                   </span>
                 </div>
               </div>
-              <button
-                onClick={handleTriggerSupabaseSync}
-                disabled={syncingSupabase}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl shadow cursor-pointer transition disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${syncingSupabase ? 'animate-spin' : ''}`} />
-                <span>{syncingSupabase ? 'Sinkronisasi...' : 'Sinkronkan Sekarang'}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(SupabaseService.getSupabaseSetupSql());
+                    setCopiedSql(true);
+                    setTimeout(() => setCopiedSql(false), 3000);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer transition"
+                >
+                  {copiedSql ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedSql ? 'SQL Tersalin!' : 'Salin Skrip SQL'}</span>
+                </button>
+                <button
+                  onClick={handleTriggerSupabaseSync}
+                  disabled={syncingSupabase}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl shadow cursor-pointer transition disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${syncingSupabase ? 'animate-spin' : ''}`} />
+                  <span>{syncingSupabase ? 'Sinkronisasi...' : 'Sinkronkan Sekarang'}</span>
+                </button>
+              </div>
             </div>
 
             {syncResult && (

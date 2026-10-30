@@ -28,17 +28,23 @@
     visibility: hidden;
   }
   #printable-registration-card,
-  #printable-registration-card * {
+  #printable-registration-card *,
+  #printable-blank-form,
+  #printable-blank-form *,
+  #printable-recap-table,
+  #printable-recap-table * {
     visibility: visible;
   }
-  #printable-registration-card {
+  #printable-registration-card,
+  #printable-blank-form,
+  #printable-recap-table {
     position: absolute;
     left: 0;
     top: 0;
     width: 100% !important;
     max-width: 210mm !important;
     margin: 0 auto !important;
-    padding: 12mm 15mm !important;
+    padding: 8mm 10mm !important;
     background: white !important;
     color: black !important;
     box-shadow: none !important;
@@ -49,6 +55,6 @@
   }
   @page {
     size: A4 portrait;
-    margin: 8mm 10mm;
+    margin: 6mm 8mm;
   }
 }
