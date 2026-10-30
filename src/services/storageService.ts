@@ -55,6 +55,18 @@ export class StorageService {
     }
   }
 
+  /**
+   * Simpan pendaftar secara senyap dari Realtime (tanpa loop trigger upsert balik ke Supabase)
+   */
+  static saveRegistrantsSilently(list: StudentRegistration[]) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.REGISTRANTS, JSON.stringify(list));
+      this.notifyChange();
+    } catch (e) {
+      console.error('Failed to save registrants silently', e);
+    }
+  }
+
   static async saveRegistrantsAsync(list: StudentRegistration[]): Promise<{ success: boolean; message: string }> {
     try {
       localStorage.setItem(STORAGE_KEYS.REGISTRANTS, JSON.stringify(list));
@@ -195,6 +207,8 @@ export class StorageService {
     const target = list[targetIndex];
     list.splice(targetIndex, 1);
     this.saveRegistrants(list);
+    // Hapus juga dari Supabase Cloud
+    SupabaseService.deleteRegistrant(target.registrationNumber, target.id).catch(() => {});
 
     // Also decrement major quota filled count if applicable
     try {
@@ -595,6 +609,21 @@ export class StorageService {
     } catch (e: any) {
       console.error('Failed to save settings async', e);
       return { success: false, message: e?.message || 'Gagal menyimpan pengaturan.' };
+    }
+  }
+
+  /**
+   * Simpan pengaturan secara senyap dari event Realtime
+   */
+  static saveSettingsSilently(settings: SchoolSettings) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+      if (settings.announcements) {
+        localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(settings.announcements));
+      }
+      this.notifyChange();
+    } catch (e) {
+      console.error('Failed to save settings silently', e);
     }
   }
 

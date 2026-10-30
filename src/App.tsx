@@ -102,10 +102,23 @@ export default function App() {
     // Subscribe to Realtime Postgres changes from Supabase
     const unsubscribeRealtime = SupabaseService.subscribeToRealtimeChanges(
       (payload) => {
-        // Realtime change in registrations detected
-        StorageService.fetchFromSupabase().then(() => reloadAllData()).catch(() => {});
+        // Handle Realtime changes in registrations (INSERT, UPDATE, DELETE)
         if (payload?.eventType === 'INSERT') {
           const studentName = payload.new?.full_name || 'Calon Siswa Baru';
+          const newStudent = payload.new?.data_payload as StudentRegistration;
+          if (newStudent) {
+            setRegistrants((prev) => {
+              if (prev.some((r) => r.registrationNumber === newStudent.registrationNumber || r.id === newStudent.id)) {
+                return prev;
+              }
+              const next = [newStudent, ...prev];
+              StorageService.saveRegistrantsSilently(next);
+              return next;
+            });
+          } else {
+            StorageService.fetchFromSupabase().then(() => reloadAllData()).catch(() => {});
+          }
+
           setRealtimeAlert({
             message: `⚡ [Realtime Sync] Pendaftaran baru masuk: ${studentName}`,
             type: 'success',
@@ -113,26 +126,72 @@ export default function App() {
           setTimeout(() => setRealtimeAlert(null), 5000);
         } else if (payload?.eventType === 'UPDATE') {
           const studentName = payload.new?.full_name || 'Data Pendaftar';
+          const updatedStudent = payload.new?.data_payload as StudentRegistration;
+          if (updatedStudent) {
+            setRegistrants((prev) => {
+              const next = prev.map((r) =>
+                (r.registrationNumber === updatedStudent.registrationNumber || r.id === updatedStudent.id)
+                  ? updatedStudent
+                  : r
+              );
+              StorageService.saveRegistrantsSilently(next);
+              return next;
+            });
+          } else {
+            StorageService.fetchFromSupabase().then(() => reloadAllData()).catch(() => {});
+          }
+
           setRealtimeAlert({
-            message: `⚡ [Realtime Sync] Data/status ${studentName} telah diperbarui: ${payload.new?.status || 'Update'}`,
+            message: `⚡ [Realtime Sync] Data/status ${studentName} diperbarui: ${payload.new?.status || 'Update'}`,
             type: 'info',
           });
           setTimeout(() => setRealtimeAlert(null), 5000);
+        } else if (payload?.eventType === 'DELETE') {
+          const deletedRegNumber = payload.old?.registration_number;
+          const deletedId = payload.old?.id;
+          setRegistrants((prev) => {
+            const next = prev.filter(
+              (r) => (deletedId ? r.id !== deletedId : true) && (deletedRegNumber ? r.registrationNumber !== deletedRegNumber : true)
+            );
+            StorageService.saveRegistrantsSilently(next);
+            return next;
+          });
+
+          setRealtimeAlert({
+            message: `⚡ [Realtime Sync] Data pendaftar (${deletedRegNumber || deletedId || 'Data'}) telah dihapus.`,
+            type: 'info',
+          });
+          setTimeout(() => setRealtimeAlert(null), 5000);
+        } else {
+          // Fallback event handler
+          StorageService.fetchFromSupabase().then(() => reloadAllData()).catch(() => {});
         }
       },
-      () => {
-        // Realtime change in settings detected
-        SupabaseService.fetchSettings().then((res) => {
-          if (res.success && res.data) {
-            StorageService.saveSettings(res.data);
-            reloadAllData();
-            setRealtimeAlert({
-              message: '⚡ [Realtime Sync] Pengaturan sekolah atau pengumuman berhasil disinkronkan!',
-              type: 'info',
-            });
-            setTimeout(() => setRealtimeAlert(null), 5000);
-          }
-        }).catch(() => {});
+      (payload) => {
+        // Realtime change in settings or announcements detected
+        if (payload?.new?.settings_payload) {
+          const newSettings = payload.new.settings_payload as SchoolSettings;
+          setSettings(newSettings);
+          StorageService.saveSettingsSilently(newSettings);
+          setRealtimeAlert({
+            message: '⚡ [Realtime Sync] Pengaturan sekolah dan pengumuman berhasil disinkronkan!',
+            type: 'info',
+          });
+          setTimeout(() => setRealtimeAlert(null), 5000);
+        } else {
+          SupabaseService.fetchSettings().then((res) => {
+            if (res.success && res.data) {
+              setSettings(res.data);
+              StorageService.saveSettingsSilently(res.data);
+              reloadAllData();
+              setRealtimeAlert({
+                message: '⚡ [Realtime Sync] Pengaturan sekolah berhasil disinkronkan!',
+                type: 'info',
+              });
+              setTimeout(() => setRealtimeAlert(null), 5000);
+            }
+          }).catch(() => {});
+        }
       }
     );
 
