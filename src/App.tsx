@@ -14,7 +14,6 @@ import {
   SchoolAnnouncement 
 } from './types/spmb';
 import { StorageService } from './services/storageService';
-import { SupabaseService } from './services/supabaseClient';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { AnnouncementsSection } from './components/AnnouncementsSection';
@@ -67,7 +66,6 @@ export default function App() {
   const [printableRecapActive, setPrintableRecapActive] = useState(false);
   const [showPrintableBlankForm, setShowPrintableBlankForm] = useState(false);
   const [notificationTarget, setNotificationTarget] = useState<StudentRegistration | null>(null);
-  const [realtimeAlert, setRealtimeAlert] = useState<{ message: string; type: 'info' | 'success' } | null>(null);
 
   // Reload data helper
   const reloadAllData = () => {
@@ -81,7 +79,7 @@ export default function App() {
     setActiveAdmin(StorageService.getActiveSession());
   };
 
-  // Sync with localStorage & Supabase Realtime changes across tabs/windows
+  // Sync with localStorage changes across tabs/windows
   useEffect(() => {
     const handleStorageUpdate = () => {
       reloadAllData();
@@ -90,110 +88,11 @@ export default function App() {
     window.addEventListener('spmb-storage-updated', handleStorageUpdate);
     window.addEventListener('storage', handleStorageUpdate);
 
-    // Initial background Supabase REST sync test & settings fetch
+    // Initialize Supabase Realtime synchronization across all tabs and devices
+    StorageService.initRealtimeSync();
+
+    // Initial background Supabase REST & Realtime sync test
     StorageService.fetchFromSupabase().catch(() => {});
-    SupabaseService.fetchSettings().then((res) => {
-      if (res.success && res.data) {
-        StorageService.saveSettings(res.data);
-        reloadAllData();
-      }
-    }).catch(() => {});
-
-    // Subscribe to Realtime Postgres changes from Supabase
-    const unsubscribeRealtime = SupabaseService.subscribeToRealtimeChanges(
-      (payload) => {
-        // Handle Realtime changes in registrations (INSERT, UPDATE, DELETE)
-        if (payload?.eventType === 'INSERT') {
-          const studentName = payload.new?.full_name || 'Calon Siswa Baru';
-          const newStudent = payload.new?.data_payload as StudentRegistration;
-          if (newStudent) {
-            setRegistrants((prev) => {
-              if (prev.some((r) => r.registrationNumber === newStudent.registrationNumber || r.id === newStudent.id)) {
-                return prev;
-              }
-              const next = [newStudent, ...prev];
-              StorageService.saveRegistrantsSilently(next);
-              return next;
-            });
-          } else {
-            StorageService.fetchFromSupabase().then(() => reloadAllData()).catch(() => {});
-          }
-
-          setRealtimeAlert({
-            message: `⚡ [Realtime Sync] Pendaftaran baru masuk: ${studentName}`,
-            type: 'success',
-          });
-          setTimeout(() => setRealtimeAlert(null), 5000);
-        } else if (payload?.eventType === 'UPDATE') {
-          const studentName = payload.new?.full_name || 'Data Pendaftar';
-          const updatedStudent = payload.new?.data_payload as StudentRegistration;
-          if (updatedStudent) {
-            setRegistrants((prev) => {
-              const next = prev.map((r) =>
-                (r.registrationNumber === updatedStudent.registrationNumber || r.id === updatedStudent.id)
-                  ? updatedStudent
-                  : r
-              );
-              StorageService.saveRegistrantsSilently(next);
-              return next;
-            });
-          } else {
-            StorageService.fetchFromSupabase().then(() => reloadAllData()).catch(() => {});
-          }
-
-          setRealtimeAlert({
-            message: `⚡ [Realtime Sync] Data/status ${studentName} diperbarui: ${payload.new?.status || 'Update'}`,
-            type: 'info',
-          });
-          setTimeout(() => setRealtimeAlert(null), 5000);
-        } else if (payload?.eventType === 'DELETE') {
-          const deletedRegNumber = payload.old?.registration_number;
-          const deletedId = payload.old?.id;
-          setRegistrants((prev) => {
-            const next = prev.filter(
-              (r) => (deletedId ? r.id !== deletedId : true) && (deletedRegNumber ? r.registrationNumber !== deletedRegNumber : true)
-            );
-            StorageService.saveRegistrantsSilently(next);
-            return next;
-          });
-
-          setRealtimeAlert({
-            message: `⚡ [Realtime Sync] Data pendaftar (${deletedRegNumber || deletedId || 'Data'}) telah dihapus.`,
-            type: 'info',
-          });
-          setTimeout(() => setRealtimeAlert(null), 5000);
-        } else {
-          // Fallback event handler
-          StorageService.fetchFromSupabase().then(() => reloadAllData()).catch(() => {});
-        }
-      },
-      (payload) => {
-        // Realtime change in settings or announcements detected
-        if (payload?.new?.settings_payload) {
-          const newSettings = payload.new.settings_payload as SchoolSettings;
-          setSettings(newSettings);
-          StorageService.saveSettingsSilently(newSettings);
-          setRealtimeAlert({
-            message: '⚡ [Realtime Sync] Pengaturan sekolah dan pengumuman berhasil disinkronkan!',
-            type: 'info',
-          });
-          setTimeout(() => setRealtimeAlert(null), 5000);
-        } else {
-          SupabaseService.fetchSettings().then((res) => {
-            if (res.success && res.data) {
-              setSettings(res.data);
-              StorageService.saveSettingsSilently(res.data);
-              reloadAllData();
-              setRealtimeAlert({
-                message: '⚡ [Realtime Sync] Pengaturan sekolah berhasil disinkronkan!',
-                type: 'info',
-              });
-              setTimeout(() => setRealtimeAlert(null), 5000);
-            }
-          }).catch(() => {});
-        }
-      }
-    );
 
     // Check URL parameters for QR Code verification or action triggers
     if (typeof window !== 'undefined') {
@@ -214,7 +113,6 @@ export default function App() {
     return () => {
       window.removeEventListener('spmb-storage-updated', handleStorageUpdate);
       window.removeEventListener('storage', handleStorageUpdate);
-      unsubscribeRealtime();
     };
   }, []);
 
@@ -262,7 +160,27 @@ export default function App() {
   const activeWave = waves.find(w => w.isActive) || waves[0];
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 font-sans">
+    <div 
+      className="min-h-screen flex flex-col bg-slate-50 text-slate-800 font-sans relative"
+      style={settings.appBackgroundUrl ? {
+        backgroundImage: `url(${settings.appBackgroundUrl})`,
+        backgroundAttachment: 'fixed',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      } : undefined}
+    >
+      {/* Background Dim / Blur Overlay to guarantee high contrast and crisp readability */}
+      {settings.appBackgroundUrl && (
+        <div 
+          className="fixed inset-0 pointer-events-none z-0"
+          style={{
+            backgroundColor: 'rgba(248, 250, 252, 0.92)',
+            backdropFilter: 'blur(3px)',
+          }}
+        />
+      )}
+
+      <div className="relative z-10 flex flex-col min-h-screen">
       {/* Precision A4 Print Styles & Render Target (Always in DOM for window.print()) */}
       {printableRegistration && (
         <PrintableRegistrationCard
@@ -327,6 +245,17 @@ export default function App() {
         </main>
       ) : (
         <main className="flex-1">
+          {/* Section 0: Media Promosi Utama (Brosur, Spanduk & Poster Paling Atas) */}
+          <div id="media-promo" className="border-b border-slate-200">
+            <PromoMediaSection
+              settings={settings}
+              onOpenRegister={() => {
+                setSelectedMajorForRegister(undefined);
+                setShowRegisterModal(true);
+              }}
+            />
+          </div>
+
           {/* Section 1: Hero Section */}
           <div id="beranda">
             <HeroSection
@@ -374,15 +303,6 @@ export default function App() {
               setShowCheckStatusModal(true);
             }}
             onOpenBlankForm={() => setShowPrintableBlankForm(true)}
-          />
-
-          {/* Section 4: Media Promosi Dinamis */}
-          <PromoMediaSection
-            settings={settings}
-            onOpenRegister={() => {
-              setSelectedMajorForRegister(undefined);
-              setShowRegisterModal(true);
-            }}
           />
         </main>
       )}
@@ -504,23 +424,7 @@ export default function App() {
           onClose={() => setShowPrintableBlankForm(false)}
         />
       )}
-
-      {/* Floating Realtime Toast Notification */}
-      {realtimeAlert && (
-        <div className="fixed bottom-6 right-6 z-50 max-w-sm sm:max-w-md bg-slate-950/95 text-white border border-emerald-500/60 backdrop-blur-md px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition transform animate-fade-in">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></div>
-          <div className="text-xs font-bold flex-1 leading-snug">
-            {realtimeAlert.message}
-          </div>
-          <button 
-            type="button"
-            onClick={() => setRealtimeAlert(null)} 
-            className="text-slate-400 hover:text-white text-xs font-bold p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

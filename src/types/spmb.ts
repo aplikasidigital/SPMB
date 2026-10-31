@@ -38,12 +38,13 @@ export interface StudentRegistration {
 
   // 2. Data Orang Tua / Wali
   parentData: {
-    fatherName: string;
+    fatherName: string; // Ayah / Wali
     fatherJob: string;
     fatherPhone: string;
-    motherName: string;
+    motherName: string; // Ibu / Wali
     motherJob: string;
     motherPhone: string;
+    livingStatus?: 'Tinggal bersama' | 'Keluarga lengkap' | 'Yatim' | 'Piatu' | 'Yatim Piatu' | string; // Status Tinggal
     guardianName?: string;
     guardianPhone?: string;
     monthlyIncome: string;
@@ -169,6 +170,8 @@ export interface SchoolSettings {
   customColumns: FormFieldConfig[];
   promoMediaUploads?: PromoMediaItem[];
   announcements?: SchoolAnnouncement[];
+  appBackgroundUrl?: string; // URL / Base64 foto background aplikasi
+  appBackgroundOpacity?: number; // Opacity overlay background
 }
 
 export interface PromoMediaItem {

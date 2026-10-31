@@ -80,6 +80,7 @@ export const RegistrationForm: React.FC<Props> = ({
     motherName: '',
     motherJob: '',
     motherPhone: '',
+    livingStatus: 'Tinggal bersama' as 'Tinggal bersama' | 'Keluarga lengkap' | 'Yatim' | 'Piatu' | 'Yatim Piatu' | string,
     guardianName: '',
     guardianPhone: '',
     monthlyIncome: 'Rp 3.000.000 - Rp 5.000.000',
@@ -258,7 +259,7 @@ export const RegistrationForm: React.FC<Props> = ({
           </div>
           <div className={`flex items-center gap-1.5 ${step >= 4 ? 'text-blue-600' : ''}`}>
             <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${step >= 4 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'}`}>4</span>
-            <span className="hidden sm:inline">Unggah Berkas</span>
+            <span className="hidden sm:inline">Kelengkapan Berkas (Offline)</span>
           </div>
         </div>
 
@@ -449,58 +450,103 @@ export const RegistrationForm: React.FC<Props> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Alamat Domisili Lengkap <span className="text-rose-500">*</span>
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Jalan, Gang, Blok, No Rumah"
-                  value={personalData.address}
-                  onChange={(e) => setPersonalData({ ...personalData, address: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                ></textarea>
-              </div>
+              {/* Tabel / Grid Alamat Domisili Terstruktur */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <span className="font-bold text-xs uppercase tracking-wider text-slate-800">
+                    Alamat Domisili Lengkap (Tabel / Grid Terstruktur)
+                  </span>
+                  <span className="text-[10px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                    Wajib & Akurat
+                  </span>
+                </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">RT / RW</label>
-                  <input
-                    type="text"
-                    placeholder="001/002"
-                    value={personalData.rtRw}
-                    onChange={(e) => setPersonalData({ ...personalData, rtRw: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                  />
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      1. Kampung / Dusun / Nama Jalan <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Contoh: Kp. Babakan / Jl. Surotokunto No. 12"
+                      value={personalData.address}
+                      onChange={(e) => setPersonalData({ ...personalData, address: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      2. RT / RW <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Contoh: 003 / 007"
+                      value={personalData.rtRw}
+                      onChange={(e) => setPersonalData({ ...personalData, rtRw: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Desa/Kelurahan</label>
-                  <input
-                    type="text"
-                    placeholder="Kelurahan"
-                    value={personalData.village}
-                    onChange={(e) => setPersonalData({ ...personalData, village: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Kecamatan</label>
-                  <input
-                    type="text"
-                    placeholder="Kecamatan"
-                    value={personalData.district}
-                    onChange={(e) => setPersonalData({ ...personalData, district: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Kota/Kabupaten</label>
-                  <input
-                    type="text"
-                    value={personalData.city}
-                    onChange={(e) => setPersonalData({ ...personalData, city: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                  />
+
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      3. Desa / Kelurahan <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Nama Desa/Kelurahan"
+                      value={personalData.village}
+                      onChange={(e) => setPersonalData({ ...personalData, village: e.target.value })}
+                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      4. Kecamatan <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Nama Kecamatan"
+                      value={personalData.district}
+                      onChange={(e) => setPersonalData({ ...personalData, district: e.target.value })}
+                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      5. Kabupaten / Kota <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Nama Kabupaten/Kota"
+                      value={personalData.city}
+                      onChange={(e) => setPersonalData({ ...personalData, city: e.target.value })}
+                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      6. Propinsi <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Nama Propinsi"
+                      value={personalData.province}
+                      onChange={(e) => setPersonalData({ ...personalData, province: e.target.value })}
+                      className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -517,34 +563,58 @@ export const RegistrationForm: React.FC<Props> = ({
                 <p className="text-xs text-slate-500">Data ini dibutuhkan untuk verifikasi administrasi dan kontak darurat sekolah.</p>
               </div>
 
-              {/* Data Ayah */}
+              {/* Status Tinggal Orang Tua */}
+              <div className="p-4 bg-blue-50/70 rounded-2xl border border-blue-200 space-y-2">
+                <label className="block text-xs font-bold text-blue-950 mb-1">
+                  Status Tinggal Calon Siswa Bersama Orang Tua: <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={parentData.livingStatus || 'Tinggal bersama'}
+                  onChange={(e) => setParentData({ ...parentData, livingStatus: e.target.value as any })}
+                  className="w-full px-3 py-2.5 bg-white border border-blue-300 rounded-xl text-xs sm:text-sm font-semibold text-blue-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  <option value="Tinggal bersama">Tinggal bersama</option>
+                  <option value="Keluarga lengkap">Keluarga lengkap</option>
+                  <option value="Yatim">Yatim</option>
+                  <option value="Piatu">Piatu</option>
+                  <option value="Yatim Piatu">Yatim Piatu</option>
+                </select>
+                <p className="text-[11px] text-blue-700">
+                  Pilihan status tinggal untuk pendataan beasiswa dan penyesuaian bimbingan siswa.
+                </p>
+              </div>
+
+              {/* Data Ayah / Wali */}
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                <span className="font-bold text-xs uppercase tracking-wider text-blue-700 block">
-                  Data Ayah Kandung
-                </span>
+                <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                  <span className="font-bold text-xs uppercase tracking-wider text-blue-800 block">
+                    Data Ayah / Wali
+                  </span>
+                  <span className="text-[10px] text-slate-500">Kandung atau Wali</span>
+                </div>
                 <div className="grid sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Nama Ayah</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Nama Ayah / Wali</label>
                     <input
                       type="text"
-                      placeholder="Nama Lengkap Ayah"
+                      placeholder="Nama Lengkap Ayah / Wali"
                       value={parentData.fatherName}
                       onChange={(e) => setParentData({ ...parentData, fatherName: e.target.value })}
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Pekerjaan Ayah</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Pekerjaan Ayah / Wali</label>
                     <input
                       type="text"
-                      placeholder="Contoh: Karyawan Swasta"
+                      placeholder="Contoh: Karyawan Swasta / Wiraswasta"
                       value={parentData.fatherJob}
                       onChange={(e) => setParentData({ ...parentData, fatherJob: e.target.value })}
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">No. Telp/WA Ayah</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Nomor Handphone Ayah / Wali</label>
                     <input
                       type="text"
                       placeholder="08xxxxxxxxxx"
@@ -556,24 +626,27 @@ export const RegistrationForm: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Data Ibu */}
+              {/* Data Ibu / Wali */}
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                <span className="font-bold text-xs uppercase tracking-wider text-pink-700 block">
-                  Data Ibu Kandung
-                </span>
+                <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                  <span className="font-bold text-xs uppercase tracking-wider text-pink-700 block">
+                    Data Ibu / Wali
+                  </span>
+                  <span className="text-[10px] text-slate-500">Kandung atau Wali</span>
+                </div>
                 <div className="grid sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Nama Ibu</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Nama Ibu / Wali</label>
                     <input
                       type="text"
-                      placeholder="Nama Lengkap Ibu"
+                      placeholder="Nama Lengkap Ibu / Wali"
                       value={parentData.motherName}
                       onChange={(e) => setParentData({ ...parentData, motherName: e.target.value })}
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Pekerjaan Ibu</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Pekerjaan Ibu / Wali</label>
                     <input
                       type="text"
                       placeholder="Contoh: Ibu Rumah Tangga / PNS"
@@ -583,7 +656,7 @@ export const RegistrationForm: React.FC<Props> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">No. Telp/WA Ibu</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Nomor Handphone Ibu / Wali</label>
                     <input
                       type="text"
                       placeholder="08xxxxxxxxxx"
@@ -751,125 +824,110 @@ export const RegistrationForm: React.FC<Props> = ({
             </div>
           )}
 
-          {/* --- STEP 4: UNGGAH BERKAS PERSYARATAN --- */}
+          {/* --- STEP 4: INSTRUKSI KELENGKAPAN BERKAS FISIK (OFFLINE) --- */}
           {step === 4 && (
             <div className="space-y-4">
               <div className="border-b border-slate-100 pb-2 mb-3">
-                <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                  <Upload className="w-4 h-4 text-blue-600" />
-                  Upload Berkas Persyaratan & Pas Foto
-                </h4>
-                <p className="text-xs text-slate-500">
-                  Format gambar JPG, PNG atau foto kamera HP yang jelas (maks 5MB per file). Berkas juga dapat dilengkapi saat verifikasi fisik di sekolah.
+                <div className="flex items-center gap-2">
+                  <FileCheck className="w-5 h-5 text-emerald-600" />
+                  <h4 className="font-bold text-slate-900 text-sm sm:text-base">
+                    Instruksi Kelengkapan Berkas Fisik (Offline)
+                  </h4>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Pendaftaran online ini <strong>tidak memerlukan upload file digital</strong>. Seluruh berkas fisik dibawa langsung ke panitia.
                 </p>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                {/* 1. Pas Foto 3x4 */}
-                <div className="p-3.5 border border-slate-200 rounded-2xl bg-slate-50 flex items-center gap-3">
-                  <div className="w-16 h-20 rounded-xl bg-white border border-slate-300 overflow-hidden flex items-center justify-center shrink-0">
-                    {documents.photoUrl ? (
-                      <img src={documents.photoUrl} alt="Pas Foto" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-[10px] text-slate-400 font-bold text-center px-1">FOTO 3x4</span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs font-bold text-slate-800 block">Pas Foto Calon Siswa (3x4)</span>
-                    <span className="text-[10px] text-slate-500 block mb-2">Background Merah/Biru</span>
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>{documents.photoUrl ? 'Ganti Foto' : 'Unggah Foto'}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleFileUpload('photoUrl', e)}
-                      />
-                    </label>
-                  </div>
+              {/* Informative Alert Banner */}
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-emerald-950 space-y-1">
+                  <p className="font-bold text-emerald-900 text-sm">
+                    Pendaftaran Berhasil Terdata Secara Online & Realtime
+                  </p>
+                  <p className="text-emerald-800 leading-relaxed">
+                    Setelah menekan tombol <strong>"Kirim Pendaftaran Sekarang"</strong> di bawah, Anda akan mendapatkan <strong>Nomor Registrasi</strong> dan bukti pendaftaran yang dapat dicetak atau disimpan sebagai PDF.
+                  </p>
+                </div>
+              </div>
+
+              {/* Checklist Berkas Fisik yang Dibawa ke Sekretariat */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <span className="font-bold text-xs uppercase tracking-wider text-slate-800">
+                    Daftar Berkas Fisik yang Wajib Dibawa ke Sekolah (Saat Verifikasi):
+                  </span>
+                  <span className="text-[10px] bg-slate-200 font-bold px-2 py-0.5 rounded text-slate-700">
+                    6 Dokumen
+                  </span>
                 </div>
 
-                {/* 2. Kartu Keluarga */}
-                <div className="p-3.5 border border-slate-200 rounded-2xl bg-slate-50 flex items-center gap-3">
-                  <div className="w-16 h-20 rounded-xl bg-white border border-slate-300 overflow-hidden flex items-center justify-center shrink-0">
-                    {documents.familyCardUrl ? (
-                      <img src={documents.familyCardUrl} alt="KK" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-[10px] text-slate-400 font-bold text-center px-1">SCAN KK</span>
-                    )}
+                <div className="grid sm:grid-cols-2 gap-2.5 text-xs">
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl flex items-start gap-2.5 shadow-xs">
+                    <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0 text-xs">1</span>
+                    <div>
+                      <strong className="block text-slate-900">Pas Foto 3x4 Berwarna</strong>
+                      <span className="text-[11px] text-slate-500">Sebanyak 3 lembar (Background Merah/Biru)</span>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs font-bold text-slate-800 block">Kartu Keluarga (KK)</span>
-                    <span className="text-[10px] text-slate-500 block mb-2">Foto/Scan Asli/Legalisir</span>
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>{documents.familyCardUrl ? 'Ganti Berkas' : 'Unggah KK'}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleFileUpload('familyCardUrl', e)}
-                      />
-                    </label>
-                  </div>
-                </div>
 
-                {/* 3. Akta Kelahiran */}
-                <div className="p-3.5 border border-slate-200 rounded-2xl bg-slate-50 flex items-center gap-3">
-                  <div className="w-16 h-20 rounded-xl bg-white border border-slate-300 overflow-hidden flex items-center justify-center shrink-0">
-                    {documents.birthCertUrl ? (
-                      <img src={documents.birthCertUrl} alt="Akta" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-[10px] text-slate-400 font-bold text-center px-1">AKTA</span>
-                    )}
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl flex items-start gap-2.5 shadow-xs">
+                    <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0 text-xs">2</span>
+                    <div>
+                      <strong className="block text-slate-900">Fotokopi Kartu Keluarga (KK)</strong>
+                      <span className="text-[11px] text-slate-500">Sebanyak 2 lembar (Jelas terbaca)</span>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs font-bold text-slate-800 block">Akta Kelahiran</span>
-                    <span className="text-[10px] text-slate-500 block mb-2">Bukti tanggal lahir</span>
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>{documents.birthCertUrl ? 'Ganti Berkas' : 'Unggah Akta'}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleFileUpload('birthCertUrl', e)}
-                      />
-                    </label>
-                  </div>
-                </div>
 
-                {/* 4. KTP Orang Tua */}
-                <div className="p-3.5 border border-slate-200 rounded-2xl bg-slate-50 flex items-center gap-3">
-                  <div className="w-16 h-20 rounded-xl bg-white border border-slate-300 overflow-hidden flex items-center justify-center shrink-0">
-                    {documents.parentKtpUrl ? (
-                      <img src={documents.parentKtpUrl} alt="KTP" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-[10px] text-slate-400 font-bold text-center px-1">KTP ORTU</span>
-                    )}
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl flex items-start gap-2.5 shadow-xs">
+                    <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0 text-xs">3</span>
+                    <div>
+                      <strong className="block text-slate-900">Fotokopi Akta Kelahiran</strong>
+                      <span className="text-[11px] text-slate-500">Sebanyak 2 lembar</span>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs font-bold text-slate-800 block">KTP Orang Tua / Wali</span>
-                    <span className="text-[10px] text-slate-500 block mb-2">Ayah / Ibu Kandung</span>
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>{documents.parentKtpUrl ? 'Ganti Berkas' : 'Unggah KTP'}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleFileUpload('parentKtpUrl', e)}
-                      />
-                    </label>
+
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl flex items-start gap-2.5 shadow-xs">
+                    <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0 text-xs">4</span>
+                    <div>
+                      <strong className="block text-slate-900">Fotokopi Ijazah / SKL / Rapor SMP</strong>
+                      <span className="text-[11px] text-slate-500">Sebanyak 2 lembar (Legalisir bila ada)</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl flex items-start gap-2.5 shadow-xs">
+                    <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0 text-xs">5</span>
+                    <div>
+                      <strong className="block text-slate-900">Fotokopi KTP Orang Tua / Wali</strong>
+                      <span className="text-[11px] text-slate-500">Sebanyak 2 lembar (Ayah & Ibu/Wali)</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl flex items-start gap-2.5 shadow-xs">
+                    <span className="w-6 h-6 rounded-lg bg-amber-100 text-amber-800 font-bold flex items-center justify-center shrink-0 text-xs">6</span>
+                    <div>
+                      <strong className="block text-slate-900">Fotokopi KIP / KPS / PKH / KIS</strong>
+                      <span className="text-[11px] text-slate-500">Khusus bagi penerima bantuan (Opsional)</span>
+                    </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Lokasi Penyerahan Berkas Langsung (Offline) */}
+              <div className="p-3.5 bg-slate-100 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-1">
+                <span className="font-bold text-slate-900 block">Lokasi & Waktu Penyerahan Berkas Langsung (Offline):</span>
+                <p>
+                  <strong>Sekretariat Panitia SPMB {settings.schoolName}</strong><br />
+                  {settings.address}<br />
+                  Jam Pelayanan: Senin - Sabtu (08.00 - 15.00 WIB) | Kontak WA: <strong>{settings.whatsappNumber || '0813-1442-0312'}</strong>
+                </p>
               </div>
 
               {/* Pernyataan Kebenaran Data */}
               <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-900 leading-relaxed">
                 <span className="font-bold block text-amber-950 mb-1">Pernyataan Calon Peserta Didik:</span>
-                Dengan menekan tombol "Kirim Pendaftaran", saya menyatakan bahwa seluruh data yang diisikan adalah benar, sah, dan dapat dipertanggungjawabkan sesuai ketentuan panitia SPMB SMK Lentera Bangsa 2.
+                Dengan menekan tombol "Kirim Pendaftaran", saya menyatakan bahwa seluruh data yang diisikan adalah benar, sah, dan bersedia membawa berkas fisik persyaratan ke Sekretariat Panitia SPMB sesuai ketentuan.
               </div>
             </div>
           )}

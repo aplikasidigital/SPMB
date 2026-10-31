@@ -19,8 +19,15 @@ const STORAGE_KEYS = {
   ANNOUNCEMENTS: 'spmb_lb2_announcements_v1',
 };
 
-import { SupabaseService, SUPABASE_CONFIG } from './supabaseClient';
-export { SUPABASE_CONFIG };
+import { supabase, initSupabaseRealtime } from './supabaseClient';
+
+// Supabase Credentials provided by user
+export const SUPABASE_CONFIG = {
+  REST_URL: 'https://jxcjjyqswnvbjpelptig.supabase.co/rest/v1',
+  BASE_URL: 'https://jxcjjyqswnvbjpelptig.supabase.co',
+  ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Y2pqeXFzd252YmpwZWxwdGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyNTY5ODUsImV4cCI6MjEwODgzMjk4NX0.2BzwQEIgD_wC7ffOmJEUs8xgafO4NEu3qdQ7ERBVprc',
+  PUBLISHABLE_KEY: 'sb_publishable_rFvajFkaMjPQzc474PhtYw_Xbf6HZEJ',
+};
 
 export class StorageService {
   // Helper to dispatch global event
@@ -49,33 +56,9 @@ export class StorageService {
       localStorage.setItem(STORAGE_KEYS.REGISTRANTS, JSON.stringify(list));
       this.notifyChange();
       // Background Supabase Sync attempt
-      SupabaseService.syncRegistrants(list).catch(() => {});
+      this.syncRegistrantsToSupabase(list).catch(() => {});
     } catch (e) {
       console.error('Failed to save registrants', e);
-    }
-  }
-
-  /**
-   * Simpan pendaftar secara senyap dari Realtime (tanpa loop trigger upsert balik ke Supabase)
-   */
-  static saveRegistrantsSilently(list: StudentRegistration[]) {
-    try {
-      localStorage.setItem(STORAGE_KEYS.REGISTRANTS, JSON.stringify(list));
-      this.notifyChange();
-    } catch (e) {
-      console.error('Failed to save registrants silently', e);
-    }
-  }
-
-  static async saveRegistrantsAsync(list: StudentRegistration[]): Promise<{ success: boolean; message: string }> {
-    try {
-      localStorage.setItem(STORAGE_KEYS.REGISTRANTS, JSON.stringify(list));
-      this.notifyChange();
-      const res = await SupabaseService.syncRegistrants(list);
-      return res;
-    } catch (e: any) {
-      console.error('Failed to save registrants', e);
-      return { success: false, message: e?.message || 'Gagal menyimpan ke penyimpanan.' };
     }
   }
 
@@ -207,8 +190,7 @@ export class StorageService {
     const target = list[targetIndex];
     list.splice(targetIndex, 1);
     this.saveRegistrants(list);
-    // Hapus juga dari Supabase Cloud
-    SupabaseService.deleteRegistrant(target.registrationNumber, target.id).catch(() => {});
+    this.deleteRegistrantFromSupabase(target.registrationNumber).catch(() => {});
 
     // Also decrement major quota filled count if applicable
     try {
@@ -343,6 +325,7 @@ export class StorageService {
   static saveWaves(waves: SchoolWave[]) {
     localStorage.setItem(STORAGE_KEYS.WAVES, JSON.stringify(waves));
     this.notifyChange();
+    this.syncWavesToSupabase(waves).catch(() => {});
   }
 
   static addWave(wave: Omit<SchoolWave, 'id'> & { id?: string }, performedBy = 'Admin'): SchoolWave {
@@ -581,50 +564,13 @@ export class StorageService {
       localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(settings.announcements));
     }
     this.notifyChange();
+    this.syncSettingsToSupabase(settings, adminName).catch(() => {});
     this.addLog({
       action: 'Perubahan Pengaturan Aplikasi',
       performedBy: adminName,
-      details: 'Pengaturan profil sekolah, kontak, media promosi, atau pengumuman telah diperbarui.',
+      details: 'Pengaturan profil sekolah, kontak, media promosi, background, atau pengumuman telah diperbarui.',
       type: 'SETTINGS_CHANGE',
     });
-    // Background Supabase Sync attempt
-    SupabaseService.syncSettings(settings).catch(() => {});
-  }
-
-  static async saveSettingsAsync(settings: SchoolSettings, adminName = 'Admin Utama'): Promise<{ success: boolean; message: string }> {
-    try {
-      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
-      if (settings.announcements) {
-        localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(settings.announcements));
-      }
-      this.notifyChange();
-      this.addLog({
-        action: 'Perubahan Pengaturan Aplikasi',
-        performedBy: adminName,
-        details: 'Pengaturan profil sekolah, kontak, media promosi, atau pengumuman telah diperbarui.',
-        type: 'SETTINGS_CHANGE',
-      });
-      const res = await SupabaseService.syncSettings(settings);
-      return res;
-    } catch (e: any) {
-      console.error('Failed to save settings async', e);
-      return { success: false, message: e?.message || 'Gagal menyimpan pengaturan.' };
-    }
-  }
-
-  /**
-   * Simpan pengaturan secara senyap dari event Realtime
-   */
-  static saveSettingsSilently(settings: SchoolSettings) {
-    try {
-      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
-      if (settings.announcements) {
-        localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(settings.announcements));
-      }
-      this.notifyChange();
-    } catch (e) {
-      console.error('Failed to save settings silently', e);
-    }
   }
 
   // --- ANNOUNCEMENTS (PENGUMUMAN & INFO PENTING) ---
@@ -654,6 +600,7 @@ export class StorageService {
     settings.announcements = announcements;
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
     this.notifyChange();
+    this.syncAnnouncementsToSupabase(announcements).catch(() => {});
     this.addLog({
       action: 'Update Daftar Pengumuman',
       performedBy: adminName,
@@ -798,16 +745,317 @@ export class StorageService {
     this.notifyChange();
   }
 
-  // --- SUPABASE REST SYNC ---
+  // --- SUPABASE REALTIME & PERSISTENCE SYNC ---
+  static initRealtimeSync() {
+    initSupabaseRealtime((payload) => {
+      // If remote change happens, update local storage cache seamlessly
+      if (payload?.table === 'spmb_registrations') {
+        this.fetchRegistrantsFromSupabase().catch(() => {});
+      } else if (payload?.table === 'spmb_settings') {
+        this.fetchSettingsFromSupabase().catch(() => {});
+      } else if (payload?.table === 'spmb_announcements') {
+        this.fetchAnnouncementsFromSupabase().catch(() => {});
+      } else if (payload?.table === 'spmb_waves') {
+        this.fetchWavesFromSupabase().catch(() => {});
+      }
+    });
+  }
+
   static async syncRegistrantsToSupabase(list: StudentRegistration[]): Promise<{ success: boolean; message: string }> {
-    return SupabaseService.syncRegistrants(list);
+    try {
+      const records = list.map(r => ({
+        id: r.id,
+        registration_number: r.registrationNumber,
+        full_name: r.personalData.fullName,
+        nik: r.personalData.nik || null,
+        family_card_number: r.personalData.familyCardNumber || null,
+        nisn: r.personalData.nisn || null,
+        phone: r.personalData.phoneWhatsApp,
+        email: r.personalData.email,
+        wave: r.wave,
+        major_first: r.majorChoice.firstChoice,
+        major_second: r.majorChoice.secondChoice,
+        status: r.status,
+        status_note: r.statusNote || null,
+        created_at: r.createdAt,
+        updated_at: r.updatedAt,
+        data_payload: r,
+      }));
+
+      const { error } = await supabase
+        .from('spmb_registrations')
+        .upsert(records, { onConflict: 'registration_number' });
+
+      if (error) {
+        // Fallback using direct REST endpoint
+        const url = `${SUPABASE_CONFIG.REST_URL}/spmb_registrations`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_CONFIG.ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates',
+          },
+          body: JSON.stringify(records),
+        });
+        if (!res.ok) {
+          return { success: false, message: `Supabase REST: ${res.statusText}. Data aman di Local DB.` };
+        }
+      }
+
+      return {
+        success: true,
+        message: 'Data tersinkronisasi online ke Supabase Cloud Database Realtime.',
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Koneksi Supabase: ${error?.message || 'Offline cache aktif'}. Data tersimpan lokal aman.`,
+      };
+    }
+  }
+
+  static async deleteRegistrantFromSupabase(registrationNumber: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('spmb_registrations')
+        .delete()
+        .eq('registration_number', registrationNumber);
+
+      if (error) {
+        // Fallback REST call
+        await fetch(`${SUPABASE_CONFIG.REST_URL}/spmb_registrations?registration_number=eq.${registrationNumber}`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_CONFIG.ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+          },
+        });
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  static async syncSettingsToSupabase(settings: SchoolSettings, updatedBy = 'Admin'): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('spmb_settings')
+        .upsert({
+          key: 'default_settings',
+          value: settings,
+          updated_at: new Date().toISOString(),
+          updated_by: updatedBy,
+        }, { onConflict: 'key' });
+
+      if (error) {
+        await fetch(`${SUPABASE_CONFIG.REST_URL}/spmb_settings`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_CONFIG.ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates',
+          },
+          body: JSON.stringify({
+            key: 'default_settings',
+            value: settings,
+            updated_at: new Date().toISOString(),
+            updated_by: updatedBy,
+          }),
+        });
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  static async syncAnnouncementsToSupabase(announcements: SchoolAnnouncement[]): Promise<boolean> {
+    try {
+      const rows = announcements.map(a => ({
+        id: a.id,
+        title: a.title,
+        category: a.category,
+        content: a.content,
+        image_url: a.imageUrl || null,
+        published_date: a.publishedDate,
+        author: a.author,
+        is_pinned: a.isPinned,
+        is_active: a.isActive,
+      }));
+
+      const { error } = await supabase
+        .from('spmb_announcements')
+        .upsert(rows, { onConflict: 'id' });
+
+      if (error) {
+        await fetch(`${SUPABASE_CONFIG.REST_URL}/spmb_announcements`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_CONFIG.ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates',
+          },
+          body: JSON.stringify(rows),
+        });
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  static async syncWavesToSupabase(waves: SchoolWave[]): Promise<boolean> {
+    try {
+      const rows = waves.map(w => ({
+        id: w.id,
+        name: w.name,
+        start_date: w.startDate,
+        end_date: w.endDate,
+        start_time: w.startTime || '08:00',
+        end_time: w.endTime || '23:59',
+        is_active: w.isActive,
+        benefits: w.benefits,
+        data_payload: w,
+      }));
+
+      const { error } = await supabase
+        .from('spmb_waves')
+        .upsert(rows, { onConflict: 'id' });
+
+      if (error) {
+        await fetch(`${SUPABASE_CONFIG.REST_URL}/spmb_waves`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_CONFIG.ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_CONFIG.ANON_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates',
+          },
+          body: JSON.stringify(rows),
+        });
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  static async fetchRegistrantsFromSupabase(): Promise<StudentRegistration[] | null> {
+    try {
+      const { data, error } = await supabase
+        .from('spmb_registrations')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        const mapped = data.map(d => d.data_payload).filter(Boolean);
+        if (mapped.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.REGISTRANTS, JSON.stringify(mapped));
+          this.notifyChange();
+          return mapped;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+
+  static async fetchSettingsFromSupabase(): Promise<SchoolSettings | null> {
+    try {
+      const { data, error } = await supabase
+        .from('spmb_settings')
+        .select('*')
+        .eq('key', 'default_settings')
+        .single();
+
+      if (!error && data?.value) {
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(data.value));
+        this.notifyChange();
+        return data.value;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+
+  static async fetchAnnouncementsFromSupabase(): Promise<SchoolAnnouncement[] | null> {
+    try {
+      const { data, error } = await supabase
+        .from('spmb_announcements')
+        .select('*')
+        .order('published_date', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        const mapped: SchoolAnnouncement[] = data.map(d => ({
+          id: d.id,
+          title: d.title,
+          category: d.category,
+          content: d.content,
+          imageUrl: d.image_url,
+          publishedDate: d.published_date,
+          author: d.author,
+          isPinned: !!d.is_pinned,
+          isActive: !!d.is_active,
+        }));
+        localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(mapped));
+        this.notifyChange();
+        return mapped;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+
+  static async fetchWavesFromSupabase(): Promise<SchoolWave[] | null> {
+    try {
+      const { data, error } = await supabase
+        .from('spmb_waves')
+        .select('*');
+
+      if (!error && data && data.length > 0) {
+        const mapped = data.map(d => d.data_payload || d).filter(Boolean);
+        localStorage.setItem(STORAGE_KEYS.WAVES, JSON.stringify(mapped));
+        this.notifyChange();
+        return mapped;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
   }
 
   static async fetchFromSupabase(): Promise<{ success: boolean; data?: StudentRegistration[]; message: string }> {
-    const res = await SupabaseService.fetchRegistrants();
-    if (res.success && res.data && res.data.length > 0) {
-      this.saveRegistrants(res.data);
+    try {
+      // Fetch registrants
+      const registrants = await this.fetchRegistrantsFromSupabase();
+      // Fetch settings, announcements, waves
+      await Promise.allSettled([
+        this.fetchSettingsFromSupabase(),
+        this.fetchAnnouncementsFromSupabase(),
+        this.fetchWavesFromSupabase(),
+      ]);
+
+      if (registrants && registrants.length > 0) {
+        return {
+          success: true,
+          data: registrants,
+          message: `Berhasil mengunduh ${registrants.length} data pendaftar dari Supabase Cloud Database.`,
+        };
+      }
+      return {
+        success: true,
+        message: 'Supabase Realtime Cloud tersambung & siap.',
+      };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Menggunakan offline cache lokal.' };
     }
-    return res;
   }
 }

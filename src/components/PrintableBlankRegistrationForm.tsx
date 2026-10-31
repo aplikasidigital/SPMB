@@ -63,47 +63,45 @@ export const PrintableBlankRegistrationForm: React.FC<Props> = ({
         className="w-full max-w-[210mm] min-h-[297mm] bg-white text-black p-8 sm:p-12 shadow-2xl rounded-none relative box-border text-[11px] leading-snug print:shadow-none print:p-8 print:m-0 print:w-full print:max-w-none print:rounded-none"
         style={{ fontFamily: "'Times New Roman', Times, serif" }}
       >
-        {/* KOP SURAT RESMI (KOMPAK & FORMAL EFISIEN) */}
-        <div className="border-b-2 border-black pb-2 mb-2.5 flex items-center justify-between gap-3">
-          <div className="w-14 h-14 shrink-0 flex items-center justify-center p-0.5">
-            <img 
-              src={settings.logoUrl} 
-              alt="Logo" 
-              className="max-w-full max-h-full object-contain"
-              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-            />
-          </div>
-          <div className="text-center flex-1 px-2">
-            <h3 className="text-[10px] font-bold uppercase tracking-widest leading-none mb-0.5">
-              YAYASAN PENDIDIKAN LENTERA BANGSA
-            </h3>
-            <h1 className="text-[16px] font-black uppercase tracking-tight text-black leading-tight">
-              {settings.schoolName}
-            </h1>
-            <p className="text-[9.5px] font-bold uppercase tracking-wider my-0.5">
-              {settings.accreditation} • NPSN: {settings.npsn}
-            </p>
-            <p className="text-[9px] italic leading-tight">
-              {settings.address}
-            </p>
-            <p className="text-[8.5px] text-gray-700 leading-tight">
-              Telp: {settings.phone} | WA: +{settings.whatsappNumber} | Email: {settings.email} | Web: {settings.website || 'smklb2.sch.id'}
-            </p>
-          </div>
-          <div className="w-14 h-14 shrink-0 flex flex-col items-center justify-center border border-dashed border-gray-400 p-1 text-center">
-            <span className="text-[7.5px] font-bold block">BLANKO</span>
-            <span className="text-[7px] text-gray-500 font-mono">OFFLINE</span>
-          </div>
-        </div>
-        <div className="border-b border-black -mt-2 mb-2"></div>
+        {/* CSS Print Rules: Standard A4 with 1cm (10mm) Margins & No Kop Surat */}
+        <style>{`
+          @media print {
+            @page {
+              size: A4 portrait;
+              margin: 10mm;
+            }
+            body {
+              background: white !important;
+              color: black !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            .print\\:hidden {
+              display: none !important;
+            }
+            #printable-blank-form {
+              padding: 0 !important;
+              margin: 0 !important;
+              border: none !important;
+              box-shadow: none !important;
+              width: 100% !important;
+            }
+          }
+        `}</style>
 
-        {/* TITLE */}
-        <div className="text-center mb-3">
-          <h2 className="text-[13px] font-black uppercase underline tracking-wider">
-            FORMULIR PENDAFTARAN PESERTA DIDIK BARU (SPMB)
+        {/* TITLE (TANPA KOP SURAT - STANDAR A4 1CM MARGIN) */}
+        <div className="text-center mb-3 pb-2.5 border-b-2 border-black">
+          <span className="text-[10px] font-bold uppercase tracking-widest block text-gray-700">
+            SISTEM PENERIMAAN MURID BARU (SPMB)
+          </span>
+          <h2 className="text-[15px] font-black uppercase tracking-wider text-black leading-tight">
+            FORMULIR PENDAFTARAN PESERTA DIDIK BARU (ISIAN MANUAL)
           </h2>
-          <p className="text-[10px] font-bold uppercase mt-0.5">
-            TAHUN AJARAN {settings.academicYear}
+          <p className="text-[11px] font-bold uppercase mt-0.5 text-black">
+            {settings.schoolName} — TAHUN AJARAN {settings.academicYear}
+          </p>
+          <p className="text-[9px] text-gray-600 mt-0.5">
+            {settings.address} | Telp: {settings.phone} | WA: {settings.whatsappNumber || '0813-1442-0312'}
           </p>
         </div>
 
