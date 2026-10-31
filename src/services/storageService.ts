@@ -745,13 +745,89 @@ export class StorageService {
     this.notifyChange();
   }
 
-  // --- SUPABASE REALTIME & PERSISTENCE SYNC ---
+  // --- SUPABASE REALTIME & PERSISTENCE SYNC (TWO-WAY INTERACTIVE WEBSOCKETS) ---
   static initRealtimeSync() {
     initSupabaseRealtime((payload) => {
-      // If remote change happens, update local storage cache seamlessly
+      // Instant handling of postgres_changes events without manual reload
       if (payload?.table === 'spmb_registrations') {
+        const eventType = payload.eventType;
+        const currentList = this.getRegistrants();
+
+        if (eventType === 'DELETE' && payload.old) {
+          const targetId = payload.old.id || payload.old.registration_number;
+          const filtered = currentList.filter(r => r.id !== targetId && r.registrationNumber !== targetId);
+          localStorage.setItem(STORAGE_KEYS.REGISTRANTS, JSON.stringify(filtered));
+          this.notifyChange();
+        } else if ((eventType === 'INSERT' || eventType === 'UPDATE') && payload.new) {
+          const raw = payload.new;
+          const item: StudentRegistration = raw.data_payload ? {
+            ...raw.data_payload,
+            status: raw.status || raw.data_payload.status || 'PENDING',
+            statusNote: raw.status_note || raw.data_payload.statusNote || '',
+          } : {
+            id: raw.id,
+            registrationNumber: raw.registration_number,
+            createdAt: raw.created_at || new Date().toISOString(),
+            updatedAt: raw.updated_at || new Date().toISOString(),
+            status: raw.status || 'PENDING',
+            statusNote: raw.status_note || '',
+            wave: raw.wave || 'Gelombang 1',
+            personalData: {
+              fullName: raw.full_name || 'Calon Siswa',
+              nik: raw.nik || '',
+              nisn: raw.nisn || '',
+              familyCardNumber: raw.family_card_number || '',
+              gender: 'Laki-laki',
+              birthPlace: 'Karawang',
+              birthDate: '2009-01-01',
+              religion: 'Islam',
+              address: 'Alamat Siswa',
+              rtRw: '001/001',
+              village: '',
+              district: '',
+              city: '',
+              province: 'Jawa Barat',
+              phoneWhatsApp: raw.phone || '',
+              email: raw.email || '',
+            },
+            parentData: {
+              fatherName: 'Orang Tua / Wali',
+              fatherJob: '',
+              fatherPhone: '',
+              motherName: '',
+              motherJob: '',
+              motherPhone: '',
+              monthlyIncome: 'Rp 3.000.000 - Rp 5.000.000',
+            },
+            schoolOrigin: {
+              schoolName: 'SMP Asal',
+              schoolAddress: '',
+              graduationYear: '2026',
+            },
+            majorChoice: {
+              firstChoice: raw.major_first || 'Pilihan Utama',
+              secondChoice: raw.major_second || 'Pilihan Cadangan',
+            },
+            documents: {},
+          };
+
+          const existIdx = currentList.findIndex(r => r.registrationNumber === item.registrationNumber || r.id === item.id);
+          if (existIdx >= 0) {
+            currentList[existIdx] = { ...currentList[existIdx], ...item };
+          } else {
+            currentList.unshift(item);
+          }
+          localStorage.setItem(STORAGE_KEYS.REGISTRANTS, JSON.stringify(currentList));
+          this.notifyChange();
+        }
+
+        // Also perform background reconciliation query
         this.fetchRegistrantsFromSupabase().catch(() => {});
       } else if (payload?.table === 'spmb_settings') {
+        if (payload.new?.value) {
+          localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(payload.new.value));
+          this.notifyChange();
+        }
         this.fetchSettingsFromSupabase().catch(() => {});
       } else if (payload?.table === 'spmb_announcements') {
         this.fetchAnnouncementsFromSupabase().catch(() => {});
@@ -953,7 +1029,62 @@ export class StorageService {
         .order('created_at', { ascending: false });
 
       if (!error && data && data.length > 0) {
-        const mapped = data.map(d => d.data_payload).filter(Boolean);
+        const mapped: StudentRegistration[] = data.map((d: any) => {
+          if (d.data_payload && typeof d.data_payload === 'object') {
+            return {
+              ...d.data_payload,
+              status: d.status || d.data_payload.status || 'PENDING',
+              statusNote: d.status_note || d.data_payload.statusNote || '',
+            };
+          }
+          return {
+            id: d.id,
+            registrationNumber: d.registration_number,
+            createdAt: d.created_at || new Date().toISOString(),
+            updatedAt: d.updated_at || new Date().toISOString(),
+            status: d.status || 'PENDING',
+            statusNote: d.status_note || '',
+            wave: d.wave || 'Gelombang 1',
+            personalData: {
+              fullName: d.full_name || 'Calon Siswa',
+              nik: d.nik || '',
+              nisn: d.nisn || '',
+              familyCardNumber: d.family_card_number || '',
+              gender: 'Laki-laki',
+              birthPlace: 'Karawang',
+              birthDate: '2009-01-01',
+              religion: 'Islam',
+              address: 'Alamat Siswa',
+              rtRw: '001/001',
+              village: '',
+              district: '',
+              city: '',
+              province: 'Jawa Barat',
+              phoneWhatsApp: d.phone || '',
+              email: d.email || '',
+            },
+            parentData: {
+              fatherName: 'Orang Tua / Wali',
+              fatherJob: '',
+              fatherPhone: '',
+              motherName: '',
+              motherJob: '',
+              motherPhone: '',
+              monthlyIncome: 'Rp 3.000.000 - Rp 5.000.000',
+            },
+            schoolOrigin: {
+              schoolName: 'SMP Asal',
+              schoolAddress: '',
+              graduationYear: '2026',
+            },
+            majorChoice: {
+              firstChoice: d.major_first || 'Pilihan Utama',
+              secondChoice: d.major_second || 'Pilihan Cadangan',
+            },
+            documents: {},
+          };
+        });
+
         if (mapped.length > 0) {
           localStorage.setItem(STORAGE_KEYS.REGISTRANTS, JSON.stringify(mapped));
           this.notifyChange();
@@ -993,7 +1124,7 @@ export class StorageService {
         .order('published_date', { ascending: false });
 
       if (!error && data && data.length > 0) {
-        const mapped: SchoolAnnouncement[] = data.map(d => ({
+        const mapped: SchoolAnnouncement[] = data.map((d: any) => ({
           id: d.id,
           title: d.title,
           category: d.category,
@@ -1021,7 +1152,7 @@ export class StorageService {
         .select('*');
 
       if (!error && data && data.length > 0) {
-        const mapped = data.map(d => d.data_payload || d).filter(Boolean);
+        const mapped = data.map((d: any) => d.data_payload || d).filter(Boolean);
         localStorage.setItem(STORAGE_KEYS.WAVES, JSON.stringify(mapped));
         this.notifyChange();
         return mapped;

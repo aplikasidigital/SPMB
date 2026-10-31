@@ -12,25 +12,44 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_rFvajFkaMjPQzc474PhtYw_Xbf6HZEJ';
 export const SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Y2pqeXFzd252YmpwZWxwdGlnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MzI1Njk4NSwiZXhwIjoyMTA4ODMyOTg1fQ.E5kAdb66npk5tyQ8H3e3p4jZ5bRt8rX3dWWSiPeWD8M';
 
-// Singleton Supabase Client with Realtime enabled
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10,
+// Create Supabase Client supporting either global CDN window.supabase or bundled SDK
+const getSupabaseClientInstance = () => {
+  const options = {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
     },
-  },
-});
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
+      },
+    },
+  };
+
+  if (typeof window !== 'undefined' && (window as any).supabase?.createClient) {
+    try {
+      return (window as any).supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, options);
+    } catch (e) {
+      // fallback
+    }
+  }
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, options);
+};
+
+// Singleton Supabase Client with Realtime enabled
+export const supabase = getSupabaseClientInstance();
+
+// Expose globally for interactive debugging, manual inspection, or external scripts
+if (typeof window !== 'undefined') {
+  (window as any).supabaseClient = supabase;
+}
 
 let isRealtimeInitialized = false;
 
 /**
- * Initializes Supabase Realtime listeners for SPMB tables.
+ * Initializes Supabase Realtime WebSocket listeners for SPMB tables.
  * Dispatches window event 'spmb-storage-updated' when data changes remotely,
- * ensuring automatic sync across open browser tabs, mobile devices, and desktops without page refresh.
+ * ensuring automatic two-way live sync across open browser tabs, mobile devices, and desktops without page refresh.
  */
 export function initSupabaseRealtime(onRemoteChange?: (payload: any) => void) {
   if (typeof window === 'undefined' || isRealtimeInitialized) return;
@@ -41,46 +60,57 @@ export function initSupabaseRealtime(onRemoteChange?: (payload: any) => void) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'spmb_registrations' },
-        (payload) => {
-          console.log('[Supabase Realtime] Registrations change detected:', payload.eventType);
-          window.dispatchEvent(new CustomEvent('spmb-storage-updated', { detail: { table: 'spmb_registrations', payload } }));
+        (payload: any) => {
+          console.log('[Supabase Realtime] Registrations change detected:', payload.eventType, payload);
+          window.dispatchEvent(new CustomEvent('spmb-storage-updated', { 
+            detail: { table: 'spmb_registrations', eventType: payload.eventType, payload } 
+          }));
           if (onRemoteChange) onRemoteChange(payload);
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'spmb_settings' },
-        (payload) => {
-          console.log('[Supabase Realtime] Settings change detected:', payload.eventType);
-          window.dispatchEvent(new CustomEvent('spmb-storage-updated', { detail: { table: 'spmb_settings', payload } }));
+        (payload: any) => {
+          console.log('[Supabase Realtime] Settings change detected:', payload.eventType, payload);
+          window.dispatchEvent(new CustomEvent('spmb-storage-updated', { 
+            detail: { table: 'spmb_settings', eventType: payload.eventType, payload } 
+          }));
           if (onRemoteChange) onRemoteChange(payload);
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'spmb_announcements' },
-        (payload) => {
-          console.log('[Supabase Realtime] Announcements change detected:', payload.eventType);
-          window.dispatchEvent(new CustomEvent('spmb-storage-updated', { detail: { table: 'spmb_announcements', payload } }));
+        (payload: any) => {
+          console.log('[Supabase Realtime] Announcements change detected:', payload.eventType, payload);
+          window.dispatchEvent(new CustomEvent('spmb-storage-updated', { 
+            detail: { table: 'spmb_announcements', eventType: payload.eventType, payload } 
+          }));
           if (onRemoteChange) onRemoteChange(payload);
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'spmb_waves' },
-        (payload) => {
-          console.log('[Supabase Realtime] Waves change detected:', payload.eventType);
-          window.dispatchEvent(new CustomEvent('spmb-storage-updated', { detail: { table: 'spmb_waves', payload } }));
+        (payload: any) => {
+          console.log('[Supabase Realtime] Waves change detected:', payload.eventType, payload);
+          window.dispatchEvent(new CustomEvent('spmb-storage-updated', { 
+            detail: { table: 'spmb_waves', eventType: payload.eventType, payload } 
+          }));
           if (onRemoteChange) onRemoteChange(payload);
         }
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
+        console.log('[Supabase Realtime Status]:', status);
         if (status === 'SUBSCRIBED') {
-          console.log('[Supabase Realtime] Connected and listening to live changes.');
+          console.log('⚡ [Supabase Realtime WebSockets]: Terhubung & mendengarkan sinkronisasi dua arah secara live.');
+          window.dispatchEvent(new CustomEvent('spmb-realtime-status', { detail: { status: 'SUBSCRIBED' } }));
         }
       });
 
     isRealtimeInitialized = true;
+    (window as any).spmbRealtimeChannel = channel;
     return channel;
   } catch (err) {
     console.warn('[Supabase Realtime] Notice: Offline or unconfigured tables, falling back to local storage cache.', err);

@@ -66,6 +66,7 @@ export default function App() {
   const [printableRecapActive, setPrintableRecapActive] = useState(false);
   const [showPrintableBlankForm, setShowPrintableBlankForm] = useState(false);
   const [notificationTarget, setNotificationTarget] = useState<StudentRegistration | null>(null);
+  const [realtimeNotice, setRealtimeNotice] = useState<{ message: string; timestamp: string } | null>(null);
 
   // Reload data helper
   const reloadAllData = () => {
@@ -81,8 +82,20 @@ export default function App() {
 
   // Sync with localStorage changes across tabs/windows
   useEffect(() => {
-    const handleStorageUpdate = () => {
+    const handleStorageUpdate = (e?: Event) => {
       reloadAllData();
+      const customEvent = e as CustomEvent;
+      if (customEvent?.detail?.payload) {
+        const evType = customEvent.detail.eventType || 'Sinkronisasi';
+        const tbl = customEvent.detail.table === 'spmb_registrations' ? 'Data Pendaftar' :
+                    customEvent.detail.table === 'spmb_settings' ? 'Pengaturan Aplikasi' :
+                    customEvent.detail.table === 'spmb_announcements' ? 'Pengumuman' : 'Jadwal Gelombang';
+        setRealtimeNotice({
+          message: `⚡ Real-Time (${evType}): ${tbl} otomatis diperbarui dari server online.`,
+          timestamp: new Date().toLocaleTimeString(),
+        });
+        setTimeout(() => setRealtimeNotice(null), 4000);
+      }
     };
 
     window.addEventListener('spmb-storage-updated', handleStorageUpdate);
@@ -423,6 +436,26 @@ export default function App() {
           majors={majors}
           onClose={() => setShowPrintableBlankForm(false)}
         />
+      )}
+
+      {/* 10. Realtime Floating Notification Toast */}
+      {realtimeNotice && (
+        <div className="fixed bottom-5 right-5 z-50 max-w-sm bg-slate-950/95 backdrop-blur-md text-white px-4 py-3 rounded-2xl shadow-2xl border border-cyan-500/50 flex items-center gap-3">
+          <div className="relative flex h-3 w-3 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span>
+          </div>
+          <div className="flex-1 text-xs">
+            <p className="font-extrabold text-cyan-300">Supabase Realtime Live</p>
+            <p className="text-slate-200 mt-0.5">{realtimeNotice.message}</p>
+          </div>
+          <button 
+            onClick={() => setRealtimeNotice(null)}
+            className="text-slate-400 hover:text-white p-1 text-xs font-bold cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
       )}
       </div>
     </div>

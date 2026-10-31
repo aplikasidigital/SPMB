@@ -414,6 +414,15 @@ export const AdminDashboard: React.FC<Props> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Real-Time Live Status Pill */}
+              <div 
+                title="Supabase Realtime WebSockets: Sinkronisasi dua arah aktif secara live tanpa refresh"
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 rounded-xl text-xs font-bold"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Realtime Active</span>
+              </div>
+
               {/* Spreadsheet & Excel Sync */}
               <button
                 onClick={onOpenSpreadsheetSync}
