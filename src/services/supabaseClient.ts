@@ -5,10 +5,10 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase Configuration from SPMB credentials
-export const SUPABASE_URL = 'https://jxcjjyqswnvbjpelptig.supabase.co';
-export const SUPABASE_API_URL = 'https://jxcjjyqswnvbjpelptig.supabase.co/rest/v1/';
-export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Y2pqeXFzd252YmpwZWxwdGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyNTY5ODUsImV4cCI6MjEwODgzMjk4NX0.2BzwQEIgD_wC7ffOmJEUs8xgafO4NEu3qdQ7ERBVprc';
+// Supabase Configuration from environment or defaults
+export const SUPABASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || 'https://jxcjjyqswnvbjpelptig.supabase.co';
+export const SUPABASE_API_URL = `${SUPABASE_URL}/rest/v1/`;
+export const SUPABASE_ANON_KEY = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Y2pqeXFzd252YmpwZWxwdGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyNTY5ODUsImV4cCI6MjEwODgzMjk4NX0.2BzwQEIgD_wC7ffOmJEUs8xgafO4NEu3qdQ7ERBVprc';
 export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_rFvajFkaMjPQzc474PhtYw_Xbf6HZEJ';
 export const SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Y2pqeXFzd252YmpwZWxwdGlnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MzI1Njk4NSwiZXhwIjoyMTA4ODMyOTg1fQ.E5kAdb66npk5tyQ8H3e3p4jZ5bRt8rX3dWWSiPeWD8M';
 

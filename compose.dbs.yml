@@ -1,3 +1,0 @@
-include:
-  - compose.realtime-db.yml
-  - compose.tenant-db.yml

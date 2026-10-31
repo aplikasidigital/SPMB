@@ -19,14 +19,14 @@ const STORAGE_KEYS = {
   ANNOUNCEMENTS: 'spmb_lb2_announcements_v1',
 };
 
-import { supabase, initSupabaseRealtime } from './supabaseClient';
+import { supabase, initSupabaseRealtime, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_PUBLISHABLE_KEY } from './supabaseClient';
 
-// Supabase Credentials provided by user
+// Supabase Credentials
 export const SUPABASE_CONFIG = {
-  REST_URL: 'https://jxcjjyqswnvbjpelptig.supabase.co/rest/v1',
-  BASE_URL: 'https://jxcjjyqswnvbjpelptig.supabase.co',
-  ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Y2pqeXFzd252YmpwZWxwdGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyNTY5ODUsImV4cCI6MjEwODgzMjk4NX0.2BzwQEIgD_wC7ffOmJEUs8xgafO4NEu3qdQ7ERBVprc',
-  PUBLISHABLE_KEY: 'sb_publishable_rFvajFkaMjPQzc474PhtYw_Xbf6HZEJ',
+  REST_URL: `${SUPABASE_URL}/rest/v1`,
+  BASE_URL: SUPABASE_URL,
+  ANON_KEY: SUPABASE_ANON_KEY,
+  PUBLISHABLE_KEY: SUPABASE_PUBLISHABLE_KEY,
 };
 
 export class StorageService {
