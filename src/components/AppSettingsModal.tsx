@@ -48,6 +48,7 @@ export const AppSettingsModal: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<'profil' | 'background' | 'promo_upload' | 'pengumuman' | 'media' | 'admin' | 'kolom'>('profil');
   const [formData, setFormData] = useState<SchoolSettings>({ 
     ...settings,
+    whatsappGroupUrl: settings.whatsappGroupUrl || '',
     promoMediaUploads: settings.promoMediaUploads || [],
     announcements: settings.announcements || [],
     appBackgroundUrl: settings.appBackgroundUrl || '',
@@ -698,6 +699,41 @@ export const AppSettingsModal: React.FC<Props> = ({
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"
                   />
+                </div>
+              </div>
+
+              {/* Link Grup WhatsApp Calon Siswa Baru */}
+              <div className="p-4 bg-emerald-50/70 border border-emerald-300 rounded-2xl shadow-xs">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-black text-emerald-950 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Link Grup WhatsApp Calon Siswa Baru (Auto-Redirect Pendaftar)
+                  </label>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                    Arahkan Pendaftar
+                  </span>
+                </div>
+                <p className="text-[11px] text-emerald-800 mb-2 leading-relaxed">
+                  Setelah calon siswa berhasil submit pendaftaran online, sistem akan otomatis mengarahkan dan memandu mereka untuk langsung bergabung ke grup WhatsApp ini.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="url"
+                    placeholder="Contoh: https://chat.whatsapp.com/Gxyz123abc..."
+                    value={formData.whatsappGroupUrl || ''}
+                    onChange={(e) => setFormData({ ...formData, whatsappGroupUrl: e.target.value })}
+                    className="flex-1 px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-xs sm:text-sm font-mono text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                  {formData.whatsappGroupUrl && (
+                    <a
+                      href={formData.whatsappGroupUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition shrink-0 shadow-sm"
+                    >
+                      <span>Buka Link Grup</span>
+                    </a>
+                  )}
                 </div>
               </div>
 
@@ -1519,6 +1555,19 @@ export const AppSettingsModal: React.FC<Props> = ({
                   value={formData.googleSheetSyncUrl}
                   onChange={(e) => setFormData({ ...formData, googleSheetSyncUrl: e.target.value })}
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-mono text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-emerald-800 mb-1">
+                  Link Grup WhatsApp Calon Siswa Baru (Auto-Redirect):
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://chat.whatsapp.com/..."
+                  value={formData.whatsappGroupUrl || ''}
+                  onChange={(e) => setFormData({ ...formData, whatsappGroupUrl: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-white border border-emerald-300 rounded-xl text-xs sm:text-sm font-mono text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
 

@@ -6,6 +6,7 @@
 import React from 'react';
 import { SchoolSettings, MajorProgram } from '../types/spmb';
 import { Printer, Download, X } from 'lucide-react';
+import { QRCodeSVG } from './QRCodeSVG';
 
 interface Props {
   settings: SchoolSettings;
@@ -89,19 +90,13 @@ export const PrintableBlankRegistrationForm: React.FC<Props> = ({
           }
         `}</style>
 
-        {/* TITLE (TANPA KOP SURAT - STANDAR A4 1CM MARGIN) */}
-        <div className="text-center mb-3 pb-2.5 border-b-2 border-black">
-          <span className="text-[10px] font-bold uppercase tracking-widest block text-gray-700">
-            SISTEM PENERIMAAN MURID BARU (SPMB)
-          </span>
+        {/* JUDUL DOKUMEN (TANPA KOP SURAT) */}
+        <div className="text-center mb-3 pb-2 border-b-2 border-black">
           <h2 className="text-[15px] font-black uppercase tracking-wider text-black leading-tight">
-            FORMULIR PENDAFTARAN PESERTA DIDIK BARU (ISIAN MANUAL)
+            FORMULIR PENDAFTARAN SISWA BARU (BLANKO ISIAN MANUAL)
           </h2>
-          <p className="text-[11px] font-bold uppercase mt-0.5 text-black">
-            {settings.schoolName} — TAHUN AJARAN {settings.academicYear}
-          </p>
-          <p className="text-[9px] text-gray-600 mt-0.5">
-            {settings.address} | Telp: {settings.phone} | WA: {settings.whatsappNumber || '0813-1442-0312'}
+          <p className="text-[11px] font-bold uppercase mt-0.5 text-black tracking-wide">
+            TAHUN AJARAN {settings.academicYear || '2026/2027'}
           </p>
         </div>
 
@@ -315,41 +310,38 @@ export const PrintableBlankRegistrationForm: React.FC<Props> = ({
           </table>
         </div>
 
-        {/* V. CHECKLIST KELENGKAPAN BERKAS & TANDA TANGAN */}
-        <div className="grid grid-cols-12 gap-3 mt-3 pt-2 border-t border-black">
-          {/* Berkas Checklist (7 cols) */}
-          <div className="col-span-7 border border-black p-2">
-            <strong className="block text-[10px] uppercase font-bold mb-1">
-              Checklist Berkas Persyaratan (Diisi Panitia):
-            </strong>
-            <div className="space-y-1 text-[9.5px]">
-              <div>[  ] Pas Foto Berwarna 3x4 (3 Lembar)</div>
-              <div>[  ] Fotokopi Kartu Keluarga (KK) Terlegalisir</div>
-              <div>[  ] Fotokopi Akta Kelahiran Siswa</div>
-              <div>[  ] Fotokopi KTP Kedua Orang Tua / Wali</div>
-              <div>[  ] Fotokopi Ijazah / SKL Sementara SMP/MTs</div>
-              <div>[  ] Fotokopi KIP / PKH / KKS (Bagi yang memiliki)</div>
-              <div>[  ] Surat Keterangan Sehat & Bebas Narkoba</div>
+        {/* V. KETERANGAN / PETUNJUK KELENGKAPAN BERKAS PERSYARATAN (TANPA CHECKLIST PANITIA & TANPA PAS FOTO) */}
+        <div className="mt-3 pt-2 border-t border-black">
+          <div className="border border-black p-2.5 bg-gray-50/80">
+            <div className="flex items-center gap-1.5 mb-1.5 border-b border-black pb-1">
+              <strong className="text-[10px] uppercase font-black tracking-wide">
+                KETERANGAN / PETUNJUK KELENGKAPAN BERKAS PERSYARATAN:
+              </strong>
             </div>
-          </div>
-
-          {/* Pas Foto Box (5 cols) */}
-          <div className="col-span-5 flex items-center justify-center">
-            <div className="w-24 h-32 border-2 border-dashed border-black flex flex-col items-center justify-center text-center p-2">
-              <span className="text-[10px] font-bold">PAS FOTO</span>
-              <span className="text-[9px]">3 x 4</span>
-              <span className="text-[8px] text-gray-500 mt-1">Background Merah</span>
+            <p className="text-[9.5px] leading-relaxed text-black">
+              Calon peserta didik <strong>wajib melengkapi dan melampirkan seluruh dokumen persyaratan</strong> berikut ke dalam map pendaftaran sebelum diserahkan kepada panitia SPMB:
+            </p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[9.5px] mt-1.5 text-black">
+              <div>• 1. Fotokopi Kartu Keluarga (KK) yang masih berlaku (2 lembar)</div>
+              <div>• 2. Fotokopi Akta Kelahiran Calon Siswa (2 lembar)</div>
+              <div>• 3. Fotokopi KTP Kedua Orang Tua / Wali Murid (2 lembar)</div>
+              <div>• 4. Fotokopi Ijazah / SKL Sementara SMP/MTs dilegalisir (2 lembar)</div>
+              <div>• 5. Fotokopi KIP / PKH / KKS (khusus bagi penerima bantuan program pemerintah)</div>
+              <div>• 6. Surat Keterangan Kelakuan Baik & Bebas Narkoba dari sekolah/faskes</div>
             </div>
+            <p className="text-[8.5px] italic text-gray-700 mt-1.5 border-t border-dashed border-gray-400 pt-1">
+              *Harap pastikan seluruh berkas telah tersusun rapi dan lengkap sesuai urutan sebelum proses validasi data.
+            </p>
           </div>
         </div>
 
-        {/* PERNYATAAN & TANDA TANGAN */}
+        {/* PERNYATAAN & TANDA TANGAN (TANDA TANGAN PANITIA OTOMATIS BERUPA QR CODE) */}
         <div className="mt-4 pt-2 text-[10px]">
           <p className="italic text-[9px] mb-3 leading-tight">
             Data yang saya isikan di atas adalah benar dan dapat dipertanggungjawabkan sesuai hukum yang berlaku. Jika di kemudian hari ditemukan ketidakbenaran data, saya bersedia menerima sanksi yang ditetapkan oleh panitia SPMB.
           </p>
 
-          <div className="grid grid-cols-3 text-center gap-2">
+          <div className="grid grid-cols-3 text-center gap-2 items-end">
             <div>
               <p>Mengetahui,<br />Orang Tua / Wali Siswa</p>
               <div className="h-16"></div>
@@ -364,11 +356,23 @@ export const PrintableBlankRegistrationForm: React.FC<Props> = ({
                 ( ............................................ )
               </p>
             </div>
-            <div>
-              <p>Panitia Penerimaan SPMB<br />Petugas Verifikasi</p>
-              <div className="h-16"></div>
-              <p className="border-t border-dotted border-black pt-1">
-                ( ............................................ )
+            <div className="flex flex-col items-center justify-end">
+              <p className="leading-tight mb-1">
+                Panitia Penerimaan SPMB<br />
+                <span className="text-[8.5px] font-bold text-gray-800">Otentikasi & Verifikasi Resmi</span>
+              </p>
+              <div className="p-1 bg-white border border-black inline-block mb-1">
+                <QRCodeSVG
+                  value={`VERIFIKASI-PANITIA-SPMB-${settings.schoolName || 'SEKOLAH'}-${settings.academicYear || '2026'}-AUTH`}
+                  size={60}
+                  className="p-0 border-0"
+                />
+              </div>
+              <p className="text-[8.5px] font-mono font-black text-black tracking-tight leading-none">
+                QR CODE TERVALIDASI
+              </p>
+              <p className="text-[7.5px] text-gray-600 mt-0.5">
+                (Tanda Tangan Panitia Otomatis)
               </p>
             </div>
           </div>

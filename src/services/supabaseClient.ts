@@ -7,8 +7,10 @@ import { createClient } from '@supabase/supabase-js';
 
 // Supabase Configuration from SPMB credentials
 export const SUPABASE_URL = 'https://jxcjjyqswnvbjpelptig.supabase.co';
+export const SUPABASE_API_URL = 'https://jxcjjyqswnvbjpelptig.supabase.co/rest/v1/';
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Y2pqeXFzd252YmpwZWxwdGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyNTY5ODUsImV4cCI6MjEwODgzMjk4NX0.2BzwQEIgD_wC7ffOmJEUs8xgafO4NEu3qdQ7ERBVprc';
 export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_rFvajFkaMjPQzc474PhtYw_Xbf6HZEJ';
+export const SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Y2pqeXFzd252YmpwZWxwdGlnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MzI1Njk4NSwiZXhwIjoyMTA4ODMyOTg1fQ.E5kAdb66npk5tyQ8H3e3p4jZ5bRt8rX3dWWSiPeWD8M';
 
 // Singleton Supabase Client with Realtime enabled
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -92,12 +94,26 @@ export class SupabaseService {
   static client = supabase;
   static config = {
     url: SUPABASE_URL,
+    apiUrl: SUPABASE_API_URL,
     anonKey: SUPABASE_ANON_KEY,
     publishableKey: SUPABASE_PUBLISHABLE_KEY,
+    serviceRoleKey: SUPABASE_SERVICE_ROLE_KEY,
   };
 
   static initRealtime(onRemoteChange?: (payload: any) => void) {
     return initSupabaseRealtime(onRemoteChange);
+  }
+
+  static async testConnection(): Promise<{ success: boolean; message: string }> {
+    try {
+      const { error } = await supabase.from('spmb_settings').select('key').limit(1);
+      if (error && error.code !== 'PGRST116') {
+        return { success: false, message: error.message };
+      }
+      return { success: true, message: 'Koneksi Supabase aktif & terhubung.' };
+    } catch (err: any) {
+      return { success: false, message: err?.message || 'Gagal terhubung ke Supabase' };
+    }
   }
 
   /**
@@ -108,9 +124,10 @@ export class SupabaseService {
     return `-- ==============================================================================
 -- SKRIP SETUP DATABASE SUPABASE POSTGRESQL UNTUK SISTEM SPMB ONLINE REALTIME
 -- Jalankan skrip ini di SQL Editor dashboard Supabase Anda (https://supabase.com/dashboard)
+-- Project URL: https://jxcjjyqswnvbjpelptig.supabase.co
 -- ==============================================================================
 
--- 1. TABEL PENDAFTARAN SISWA (spmb_registrations)
+-- 1. TABEL PENDAFTARAN SISWA BARU (spmb_registrations)
 CREATE TABLE IF NOT EXISTS public.spmb_registrations (
     id TEXT PRIMARY KEY,
     registration_number TEXT UNIQUE NOT NULL,
@@ -123,14 +140,19 @@ CREATE TABLE IF NOT EXISTS public.spmb_registrations (
     wave TEXT,
     major_first TEXT,
     major_second TEXT,
-    status TEXT DEFAULT 'Menunggu Verifikasi',
+    status TEXT DEFAULT 'PENDING',
     status_note TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     data_payload JSONB
 );
 
--- 2. TABEL PENGATURAN APLIKASI & SEKOLAH (spmb_settings)
+-- Indeks performa pencarian data siswa
+CREATE INDEX IF NOT EXISTS idx_spmb_registrations_number ON public.spmb_registrations (registration_number);
+CREATE INDEX IF NOT EXISTS idx_spmb_registrations_phone ON public.spmb_registrations (phone);
+CREATE INDEX IF NOT EXISTS idx_spmb_registrations_status ON public.spmb_registrations (status);
+
+-- 2. TABEL PENGATURAN APLIKASI & LINK WHATSAPP GROUP (spmb_settings)
 CREATE TABLE IF NOT EXISTS public.spmb_settings (
     key TEXT PRIMARY KEY,
     value JSONB NOT NULL,
@@ -138,11 +160,11 @@ CREATE TABLE IF NOT EXISTS public.spmb_settings (
     updated_by TEXT DEFAULT 'Admin'
 );
 
--- 3. TABEL PENGUMUMAN SEKOLAH (spmb_announcements)
+-- 3. TABEL PENGUMUMAN & INFORMASI PENTING (spmb_announcements)
 CREATE TABLE IF NOT EXISTS public.spmb_announcements (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
-    category TEXT DEFAULT 'Pemberitahuan',
+    category TEXT DEFAULT 'PENTING',
     content TEXT,
     image_url TEXT,
     published_date TEXT,
@@ -165,13 +187,13 @@ CREATE TABLE IF NOT EXISTS public.spmb_waves (
     data_payload JSONB
 );
 
--- 5. AKTIFKAN ROW LEVEL SECURITY (RLS) DENGAN AKSES ANON
+-- 5. AKTIFKAN ROW LEVEL SECURITY (RLS) DENGAN AKSES REALTIME & ANON
 ALTER TABLE public.spmb_registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.spmb_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.spmb_announcements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.spmb_waves ENABLE ROW LEVEL SECURITY;
 
--- Policy untuk public / anon agar sistem dapat membaca dan menulis data
+-- Kebijakan Akses Penuh untuk Public / Anon (Akses Web SPMB)
 DO $$
 BEGIN
     DROP POLICY IF EXISTS "Public Registrations Access" ON public.spmb_registrations;
@@ -187,7 +209,7 @@ BEGIN
     CREATE POLICY "Public Waves Access" ON public.spmb_waves FOR ALL USING (true) WITH CHECK (true);
 END $$;
 
--- 6. AKTIFKAN SUPABASE REALTIME REPLICATION
+-- 6. AKTIFKAN SUPABASE REALTIME REPLICATION (Sinkronisasi Otomatis Antar Perangkat)
 DO $$
 BEGIN
     BEGIN

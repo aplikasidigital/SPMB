@@ -172,6 +172,7 @@ export interface SchoolSettings {
   announcements?: SchoolAnnouncement[];
   appBackgroundUrl?: string; // URL / Base64 foto background aplikasi
   appBackgroundOpacity?: number; // Opacity overlay background
+  whatsappGroupUrl?: string; // Link invite WhatsApp Group Calon Siswa Baru (diinput oleh Admin)
 }
 
 export interface PromoMediaItem {

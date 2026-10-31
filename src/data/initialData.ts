@@ -246,6 +246,7 @@ export const INITIAL_SETTINGS: SchoolSettings = {
   facebookUrl: 'https://facebook.com/smklenterabangsa2',
   announcementTicker: '⭐ PENDAFTARAN GELOMBANG 1 SPMB 2026/2027 DIBUKA! Dapatkan subsidi seragam 50% untuk 100 pendaftar pertama! Hubungi Call Center 0813-1442-0312 ⭐',
   primaryColor: '#2563eb',
+  whatsappGroupUrl: 'https://chat.whatsapp.com/invite/spmb-smk-lentera-bangsa-2-2026',
   googleSheetSyncUrl: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
   customColumns: [
     { id: 'size_uniform', label: 'Ukuran Jas/Seragam (S/M/L/XL/XXL)', placeholder: 'Contoh: L', required: false },
