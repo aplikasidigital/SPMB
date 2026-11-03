@@ -19,7 +19,7 @@ const STORAGE_KEYS = {
   ANNOUNCEMENTS: 'spmb_lb2_announcements_v1',
 };
 
-import { supabase, initSupabaseRealtime, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_PUBLISHABLE_KEY } from './supabaseClient';
+import { supabase, initSupabaseRealtime, fetchData, updateData, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_PUBLISHABLE_KEY } from './supabaseClient';
 
 // Supabase Credentials
 export const SUPABASE_CONFIG = {
@@ -34,6 +34,58 @@ export class StorageService {
   private static notifyChange() {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('spmb-storage-updated'));
+    }
+  }
+
+  // Synchronize entire application state to Supabase spmb & app_state tables for instant multi-guest sync
+  static async syncFullStateToCloud(): Promise<boolean> {
+    const full = {
+      registrants: this.getRegistrants(),
+      majors: this.getMajors(),
+      waves: this.getWaves(),
+      settings: this.getSettings(),
+      announcements: this.getAnnouncements(),
+      logs: this.getLogs(),
+      admins: this.getAdmins(),
+      tracks: this.getTracks(),
+      fees: this.getFees(),
+    };
+    return await updateData(full, 'spmb', 'main_state');
+  }
+
+  // Apply cloud data received via Realtime or initial fetch
+  static applyCloudState(data: any) {
+    if (!data || typeof data !== 'object') return;
+    try {
+      if (Array.isArray(data.registrants)) {
+        localStorage.setItem(STORAGE_KEYS.REGISTRANTS, JSON.stringify(data.registrants));
+      }
+      if (Array.isArray(data.majors)) {
+        localStorage.setItem(STORAGE_KEYS.MAJORS, JSON.stringify(data.majors));
+      }
+      if (Array.isArray(data.waves)) {
+        localStorage.setItem(STORAGE_KEYS.WAVES, JSON.stringify(data.waves));
+      }
+      if (data.settings && typeof data.settings === 'object') {
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(data.settings));
+      }
+      if (Array.isArray(data.announcements)) {
+        localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(data.announcements));
+      }
+      if (Array.isArray(data.logs)) {
+        localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(data.logs));
+      }
+      if (Array.isArray(data.admins)) {
+        localStorage.setItem(STORAGE_KEYS.ADMINS, JSON.stringify(data.admins));
+      }
+      if (Array.isArray(data.tracks)) {
+        localStorage.setItem(STORAGE_KEYS.TRACKS, JSON.stringify(data.tracks));
+      }
+      if (Array.isArray(data.fees)) {
+        localStorage.setItem(STORAGE_KEYS.FEES, JSON.stringify(data.fees));
+      }
+    } catch (e) {
+      console.warn('[StorageService] Error applying cloud state:', e);
     }
   }
 
@@ -55,7 +107,8 @@ export class StorageService {
     try {
       localStorage.setItem(STORAGE_KEYS.REGISTRANTS, JSON.stringify(list));
       this.notifyChange();
-      // Background Supabase Sync attempt
+      // Instantly sync to Supabase app_state (multi-guest) & granular table
+      this.syncFullStateToCloud().catch(() => {});
       this.syncRegistrantsToSupabase(list).catch(() => {});
     } catch (e) {
       console.error('Failed to save registrants', e);
@@ -245,6 +298,7 @@ export class StorageService {
   static saveMajors(majors: MajorProgram[]) {
     localStorage.setItem(STORAGE_KEYS.MAJORS, JSON.stringify(majors));
     this.notifyChange();
+    this.syncFullStateToCloud().catch(() => {});
   }
 
   static addMajor(major: Omit<MajorProgram, 'id' | 'filledCount'> & { id?: string }, performedBy = 'Admin'): MajorProgram {
@@ -325,6 +379,7 @@ export class StorageService {
   static saveWaves(waves: SchoolWave[]) {
     localStorage.setItem(STORAGE_KEYS.WAVES, JSON.stringify(waves));
     this.notifyChange();
+    this.syncFullStateToCloud().catch(() => {});
     this.syncWavesToSupabase(waves).catch(() => {});
   }
 
@@ -414,6 +469,7 @@ export class StorageService {
   static saveTracks(tracks: AdmissionTrack[]) {
     localStorage.setItem(STORAGE_KEYS.TRACKS, JSON.stringify(tracks));
     this.notifyChange();
+    this.syncFullStateToCloud().catch(() => {});
   }
 
   static addTrack(track: Omit<AdmissionTrack, 'id'> & { id?: string }, performedBy = 'Admin'): AdmissionTrack {
@@ -484,6 +540,7 @@ export class StorageService {
   static saveFees(fees: FeeCategory[]) {
     localStorage.setItem(STORAGE_KEYS.FEES, JSON.stringify(fees));
     this.notifyChange();
+    this.syncFullStateToCloud().catch(() => {});
   }
 
   static addFee(fee: Omit<FeeCategory, 'id'> & { id?: string }, performedBy = 'Admin'): FeeCategory {
@@ -564,6 +621,7 @@ export class StorageService {
       localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(settings.announcements));
     }
     this.notifyChange();
+    this.syncFullStateToCloud().catch(() => {});
     this.syncSettingsToSupabase(settings, adminName).catch(() => {});
     this.addLog({
       action: 'Perubahan Pengaturan Aplikasi',
@@ -600,6 +658,7 @@ export class StorageService {
     settings.announcements = announcements;
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
     this.notifyChange();
+    this.syncFullStateToCloud().catch(() => {});
     this.syncAnnouncementsToSupabase(announcements).catch(() => {});
     this.addLog({
       action: 'Update Daftar Pengumuman',
@@ -656,6 +715,7 @@ export class StorageService {
   static saveAdmins(admins: AdminAccount[]) {
     localStorage.setItem(STORAGE_KEYS.ADMINS, JSON.stringify(admins));
     this.notifyChange();
+    this.syncFullStateToCloud().catch(() => {});
   }
 
   static addShadowAdmin(username: string, fullName: string, createdBy = 'Admin Utama'): AdminAccount {
@@ -721,6 +781,7 @@ export class StorageService {
       if (logs.length > 100) logs.pop();
       localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
       this.notifyChange();
+      this.syncFullStateToCloud().catch(() => {});
     } catch (e) {
       console.error(e);
     }
@@ -745,11 +806,30 @@ export class StorageService {
     this.notifyChange();
   }
 
+  private static isPollingStarted = false;
+
+  static startPollingSync() {
+    if (typeof window === 'undefined' || this.isPollingStarted) return;
+    this.isPollingStarted = true;
+    setInterval(() => {
+      this.fetchFromSupabase().catch(() => {});
+    }, 10000);
+  }
+
   // --- SUPABASE REALTIME & PERSISTENCE SYNC (TWO-WAY INTERACTIVE WEBSOCKETS) ---
   static initRealtimeSync() {
+    this.startPollingSync();
     initSupabaseRealtime((payload) => {
-      // Instant handling of postgres_changes events without manual reload
-      if (payload?.table === 'spmb_registrations') {
+      // Instant handling of spmb and app_state postgres_changes events for multi-guest sync
+      if (payload?.table === 'spmb' || payload?.table === 'app_state') {
+        if (payload.new?.data) {
+          console.log(`⚡ [Realtime WebSocket] Multi-guest state sync received on table ${payload.table} from another device/user`);
+          this.applyCloudState(payload.new.data);
+          this.notifyChange();
+        }
+      }
+      // Instant handling of individual table postgres_changes events
+      else if (payload?.table === 'spmb_registrations') {
         const eventType = payload.eventType;
         const currentList = this.getRegistrants();
 
@@ -1165,9 +1245,25 @@ export class StorageService {
 
   static async fetchFromSupabase(): Promise<{ success: boolean; data?: StudentRegistration[]; message: string }> {
     try {
-      // Fetch registrants
+      // 1. Fetch from spmb table (main_state) for instant multi-guest synchronization
+      const cloudState = await fetchData<any>('spmb', 'main_state');
+      if (cloudState && (cloudState.registrants || cloudState.settings)) {
+        this.applyCloudState(cloudState);
+        this.notifyChange();
+        console.log('⚡ [Supabase Cloud] State aplikasi berhasil disinkronisasi dari spmb / app_state');
+        return {
+          success: true,
+          data: this.getRegistrants(),
+          message: `Berhasil tersambung ke Supabase Realtime Cloud (Multi-Guest Aktif). ${this.getRegistrants().length} pendaftar termuat.`,
+        };
+      } else {
+        // If empty on Supabase, initialize it with current full state
+        await this.syncFullStateToCloud();
+        console.log('⚡ [Supabase Cloud] Inisialisasi awal spmb / app_state berhasil disimpan ke cloud.');
+      }
+
+      // 2. Also check granular tables if they exist
       const registrants = await this.fetchRegistrantsFromSupabase();
-      // Fetch settings, announcements, waves
       await Promise.allSettled([
         this.fetchSettingsFromSupabase(),
         this.fetchAnnouncementsFromSupabase(),
@@ -1183,7 +1279,8 @@ export class StorageService {
       }
       return {
         success: true,
-        message: 'Supabase Realtime Cloud tersambung & siap.',
+        data: this.getRegistrants(),
+        message: 'Supabase Realtime Cloud tersambung & siap (Multi-Guest Aktif).',
       };
     } catch (err: any) {
       return { success: false, message: err?.message || 'Menggunakan offline cache lokal.' };

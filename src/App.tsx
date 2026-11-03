@@ -87,7 +87,8 @@ export default function App() {
       const customEvent = e as CustomEvent;
       if (customEvent?.detail?.payload) {
         const evType = customEvent.detail.eventType || 'Sinkronisasi';
-        const tbl = customEvent.detail.table === 'spmb_registrations' ? 'Data Pendaftar' :
+        const tbl = customEvent.detail.table === 'app_state' ? 'Data Multi-Guest Cloud' :
+                    customEvent.detail.table === 'spmb_registrations' ? 'Data Pendaftar' :
                     customEvent.detail.table === 'spmb_settings' ? 'Pengaturan Aplikasi' :
                     customEvent.detail.table === 'spmb_announcements' ? 'Pengumuman' : 'Jadwal Gelombang';
         setRealtimeNotice({

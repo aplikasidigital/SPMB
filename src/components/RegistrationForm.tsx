@@ -72,7 +72,7 @@ export const RegistrationForm: React.FC<Props> = ({
     ambition: '',
   });
 
-  // Step 2: Parent
+// Step 2: Parent
   const [parentData, setParentData] = useState({
     fatherName: '',
     fatherJob: '',
@@ -80,7 +80,8 @@ export const RegistrationForm: React.FC<Props> = ({
     motherName: '',
     motherJob: '',
     motherPhone: '',
-    livingStatus: 'Tinggal bersama' as 'Tinggal bersama' | 'Keluarga lengkap' | 'Yatim' | 'Piatu' | 'Yatim Piatu' | string,
+    livingStatus: 'Tinggal bersama' as 'Tinggal bersama' | 'Orang tua lengkap' | 'Ibu' | 'Ayah' | 'Wali' | string,
+    childStatus: 'Orang tua lengkap' as 'Orang tua lengkap' | 'Yatim' | 'Piatu' | 'Yatim Piatu' | string,
     guardianName: '',
     guardianPhone: '',
     monthlyIncome: 'Rp 3.000.000 - Rp 5.000.000',
@@ -97,8 +98,8 @@ export const RegistrationForm: React.FC<Props> = ({
   });
 
   const [majorChoice, setMajorChoice] = useState({
-    firstChoice: defaultMajor || majors[0]?.name || 'Pengembangan Perangkat Lunak & Gim',
-    secondChoice: majors[1]?.name || 'Teknik Jaringan Komputer & Telekomunikasi',
+    firstChoice: defaultMajor || majors[0]?.name || 'Teknik Elektronika Industri',
+    secondChoice: majors[1]?.name || 'Teknik Sepeda Motor',
   });
 
   // Step 4: Documents (Base64)

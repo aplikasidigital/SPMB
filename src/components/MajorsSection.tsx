@@ -9,6 +9,7 @@ import {
   Code2, 
   Network, 
   Wrench, 
+  Cpu,
   Palette, 
   Briefcase, 
   Coins, 
@@ -29,12 +30,14 @@ export const MajorsSection: React.FC<Props> = ({ majors, onSelectMajor }) => {
 
   const getMajorIcon = (iconName: string) => {
     switch (iconName) {
+      case 'Cpu':
+        return <Cpu className="w-6 h-6" />;
+      case 'Wrench':
+        return <Wrench className="w-6 h-6" />;
       case 'Code2':
         return <Code2 className="w-6 h-6" />;
       case 'Network':
         return <Network className="w-6 h-6" />;
-      case 'Wrench':
-        return <Wrench className="w-6 h-6" />;
       case 'Palette':
         return <Palette className="w-6 h-6" />;
       case 'Briefcase':
@@ -42,7 +45,7 @@ export const MajorsSection: React.FC<Props> = ({ majors, onSelectMajor }) => {
       case 'Coins':
         return <Coins className="w-6 h-6" />;
       default:
-        return <Code2 className="w-6 h-6" />;
+        return <Cpu className="w-6 h-6" />;
     }
   };
 
@@ -64,7 +67,7 @@ export const MajorsSection: React.FC<Props> = ({ majors, onSelectMajor }) => {
         </div>
 
         {/* Majors Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-2 max-w-5xl mx-auto gap-8">
           {majors.map((major) => {
             const percentage = Math.min(100, Math.round((major.filledCount / major.quota) * 100));
             const isAlmostFull = percentage >= 75;
