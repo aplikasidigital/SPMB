@@ -1,8 +1,8 @@
-
 -- =============================================================================
 -- DATABASE SPMB SMK LENTERA BANGSA 2
--- SUPABASE DATABASE + MULTI GUEST + REALTIME
--- VERSION: STABLE / RE-RUN SAFE
+-- SUPABASE DATABASE - STABLE MIGRATION
+-- MULTI GUEST + REALTIME + DATA PRESERVATION
+-- RE-RUN SAFE
 -- =============================================================================
 
 BEGIN;
@@ -13,13 +13,13 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS public.spmb (
     id TEXT PRIMARY KEY,
-    data JSONB NOT NULL,
+    data JSONB NOT NULL DEFAULT '{}'::JSONB,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS public.app_state (
     id TEXT PRIMARY KEY,
-    data JSONB NOT NULL,
+    data JSONB NOT NULL DEFAULT '{}'::JSONB,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS public.spmb_registrations (
     status_note TEXT DEFAULT 'Pendaftaran baru masuk. Menunggu verifikasi berkas.',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    data_payload JSONB NOT NULL
+    data_payload JSONB NOT NULL DEFAULT '{}'::JSONB
 );
 
 -- =============================================================================
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS public.spmb_registrations (
 
 CREATE TABLE IF NOT EXISTS public.spmb_settings (
     key TEXT PRIMARY KEY,
-    value JSONB NOT NULL,
+    value JSONB NOT NULL DEFAULT '{}'::JSONB,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_by TEXT DEFAULT 'Admin'
 );
@@ -71,7 +71,8 @@ CREATE TABLE IF NOT EXISTS public.spmb_announcements (
     author TEXT DEFAULT 'Panitia SPMB',
     is_pinned BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- =============================================================================
@@ -87,11 +88,177 @@ CREATE TABLE IF NOT EXISTS public.spmb_waves (
     end_time TEXT DEFAULT '23:59',
     is_active BOOLEAN DEFAULT TRUE,
     benefits TEXT,
-    data_payload JSONB
+    data_payload JSONB,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- =============================================================================
--- 6. INDEX PERFORMA DATABASE
+-- 6. MIGRASI STRUKTUR TABEL LAMA TANPA MENGHAPUS DATA
+-- =============================================================================
+
+ALTER TABLE public.spmb
+    ADD COLUMN IF NOT EXISTS data JSONB DEFAULT '{}'::JSONB,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+ALTER TABLE public.app_state
+    ADD COLUMN IF NOT EXISTS data JSONB DEFAULT '{}'::JSONB,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+ALTER TABLE public.spmb_registrations
+    ADD COLUMN IF NOT EXISTS registration_number TEXT,
+    ADD COLUMN IF NOT EXISTS full_name TEXT,
+    ADD COLUMN IF NOT EXISTS nik TEXT,
+    ADD COLUMN IF NOT EXISTS family_card_number TEXT,
+    ADD COLUMN IF NOT EXISTS nisn TEXT,
+    ADD COLUMN IF NOT EXISTS phone TEXT,
+    ADD COLUMN IF NOT EXISTS email TEXT,
+    ADD COLUMN IF NOT EXISTS wave TEXT DEFAULT 'Gelombang 1',
+    ADD COLUMN IF NOT EXISTS major_first TEXT,
+    ADD COLUMN IF NOT EXISTS major_second TEXT,
+    ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'PENDING',
+    ADD COLUMN IF NOT EXISTS status_note TEXT DEFAULT 'Pendaftaran baru masuk. Menunggu verifikasi berkas.',
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW(),
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW(),
+    ADD COLUMN IF NOT EXISTS data_payload JSONB DEFAULT '{}'::JSONB;
+
+ALTER TABLE public.spmb_settings
+    ADD COLUMN IF NOT EXISTS value JSONB DEFAULT '{}'::JSONB,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW(),
+    ADD COLUMN IF NOT EXISTS updated_by TEXT DEFAULT 'Admin';
+
+ALTER TABLE public.spmb_announcements
+    ADD COLUMN IF NOT EXISTS title TEXT,
+    ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'PENTING',
+    ADD COLUMN IF NOT EXISTS content TEXT,
+    ADD COLUMN IF NOT EXISTS image_url TEXT,
+    ADD COLUMN IF NOT EXISTS published_date TEXT,
+    ADD COLUMN IF NOT EXISTS author TEXT DEFAULT 'Panitia SPMB',
+    ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE,
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW(),
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+ALTER TABLE public.spmb_waves
+    ADD COLUMN IF NOT EXISTS name TEXT,
+    ADD COLUMN IF NOT EXISTS start_date TEXT,
+    ADD COLUMN IF NOT EXISTS end_date TEXT,
+    ADD COLUMN IF NOT EXISTS start_time TEXT DEFAULT '08:00',
+    ADD COLUMN IF NOT EXISTS end_time TEXT DEFAULT '23:59',
+    ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE,
+    ADD COLUMN IF NOT EXISTS benefits TEXT,
+    ADD COLUMN IF NOT EXISTS data_payload JSONB,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- =============================================================================
+-- 7. MELENGKAPI NILAI KOSONG PADA DATA LAMA
+-- =============================================================================
+
+UPDATE public.spmb
+SET
+    data = COALESCE(data, '{}'::JSONB),
+    updated_at = COALESCE(updated_at, NOW())
+WHERE data IS NULL OR updated_at IS NULL;
+
+UPDATE public.app_state
+SET
+    data = COALESCE(data, '{}'::JSONB),
+    updated_at = COALESCE(updated_at, NOW())
+WHERE data IS NULL OR updated_at IS NULL;
+
+UPDATE public.spmb_registrations
+SET
+    registration_number = COALESCE(
+        NULLIF(TRIM(registration_number), ''),
+        'LEGACY-' || id
+    ),
+    full_name = COALESCE(
+        NULLIF(TRIM(full_name), ''),
+        'Data Pendaftar Lama'
+    ),
+    status = COALESCE(status, 'PENDING'),
+    wave = COALESCE(wave, 'Gelombang 1'),
+    status_note = COALESCE(
+        status_note,
+        'Pendaftaran baru masuk. Menunggu verifikasi berkas.'
+    ),
+    created_at = COALESCE(created_at, NOW()),
+    updated_at = COALESCE(updated_at, NOW()),
+    data_payload = COALESCE(data_payload, '{}'::JSONB);
+
+-- Memastikan nomor pendaftaran lama tidak memiliki duplikasi.
+WITH duplicate_numbers AS (
+    SELECT
+        id,
+        registration_number,
+        ROW_NUMBER() OVER (
+            PARTITION BY registration_number
+            ORDER BY created_at NULLS LAST, id
+        ) AS row_num
+    FROM public.spmb_registrations
+)
+UPDATE public.spmb_registrations AS r
+SET registration_number = 'LEGACY-' || r.id
+FROM duplicate_numbers AS d
+WHERE r.id = d.id
+AND d.row_num > 1;
+
+UPDATE public.spmb_settings
+SET
+    value = COALESCE(value, '{}'::JSONB),
+    updated_at = COALESCE(updated_at, NOW()),
+    updated_by = COALESCE(updated_by, 'Admin')
+WHERE value IS NULL OR updated_at IS NULL OR updated_by IS NULL;
+
+UPDATE public.spmb_announcements
+SET
+    category = COALESCE(category, 'PENTING'),
+    published_date = COALESCE(
+        published_date,
+        TO_CHAR(NOW(), 'YYYY-MM-DD')
+    ),
+    author = COALESCE(author, 'Panitia SPMB'),
+    is_pinned = COALESCE(is_pinned, FALSE),
+    is_active = COALESCE(is_active, TRUE),
+    created_at = COALESCE(created_at, NOW()),
+    updated_at = COALESCE(updated_at, NOW());
+
+UPDATE public.spmb_waves
+SET
+    start_time = COALESCE(start_time, '08:00'),
+    end_time = COALESCE(end_time, '23:59'),
+    is_active = COALESCE(is_active, TRUE),
+    updated_at = COALESCE(updated_at, NOW());
+
+-- =============================================================================
+-- 8. MEMASTIKAN KOLOM WAJIB TIDAK NULL
+-- =============================================================================
+
+ALTER TABLE public.spmb
+    ALTER COLUMN data SET DEFAULT '{}'::JSONB,
+    ALTER COLUMN data SET NOT NULL,
+    ALTER COLUMN updated_at SET DEFAULT NOW(),
+    ALTER COLUMN updated_at SET NOT NULL;
+
+ALTER TABLE public.app_state
+    ALTER COLUMN data SET DEFAULT '{}'::JSONB,
+    ALTER COLUMN data SET NOT NULL,
+    ALTER COLUMN updated_at SET DEFAULT NOW(),
+    ALTER COLUMN updated_at SET NOT NULL;
+
+ALTER TABLE public.spmb_registrations
+    ALTER COLUMN registration_number SET NOT NULL,
+    ALTER COLUMN full_name SET NOT NULL,
+    ALTER COLUMN data_payload SET DEFAULT '{}'::JSONB,
+    ALTER COLUMN data_payload SET NOT NULL;
+
+ALTER TABLE public.spmb_settings
+    ALTER COLUMN value SET DEFAULT '{}'::JSONB,
+    ALTER COLUMN value SET NOT NULL,
+    ALTER COLUMN updated_at SET DEFAULT NOW(),
+    ALTER COLUMN updated_at SET NOT NULL;
+
+-- =============================================================================
+-- 9. INDEX DATABASE UNTUK PERFORMA
 -- =============================================================================
 
 CREATE INDEX IF NOT EXISTS idx_spmb_reg_full_name
@@ -112,8 +279,17 @@ ON public.spmb_registrations (wave);
 CREATE INDEX IF NOT EXISTS idx_spmb_reg_created
 ON public.spmb_registrations (created_at DESC);
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_spmb_registration_number_unique
+ON public.spmb_registrations (registration_number);
+
+CREATE INDEX IF NOT EXISTS idx_spmb_announcements_active
+ON public.spmb_announcements (is_active, published_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_spmb_waves_active
+ON public.spmb_waves (is_active);
+
 -- =============================================================================
--- 7. TRIGGER OTOMATIS UPDATED_AT
+-- 10. FUNGSI OTOMATIS UPDATED_AT
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.spmb_update_timestamp()
@@ -125,6 +301,8 @@ BEGIN
     RETURN NEW;
 END;
 $$;
+
+-- Trigger dibuat ulang secara konsisten.
 
 DROP TRIGGER IF EXISTS trg_spmb_updated_at
 ON public.spmb;
@@ -158,8 +336,24 @@ BEFORE UPDATE ON public.spmb_settings
 FOR EACH ROW
 EXECUTE FUNCTION public.spmb_update_timestamp();
 
+DROP TRIGGER IF EXISTS trg_spmb_announcements_updated_at
+ON public.spmb_announcements;
+
+CREATE TRIGGER trg_spmb_announcements_updated_at
+BEFORE UPDATE ON public.spmb_announcements
+FOR EACH ROW
+EXECUTE FUNCTION public.spmb_update_timestamp();
+
+DROP TRIGGER IF EXISTS trg_spmb_waves_updated_at
+ON public.spmb_waves;
+
+CREATE TRIGGER trg_spmb_waves_updated_at
+BEFORE UPDATE ON public.spmb_waves
+FOR EACH ROW
+EXECUTE FUNCTION public.spmb_update_timestamp();
+
 -- =============================================================================
--- 8. ROW LEVEL SECURITY
+-- 11. ROW LEVEL SECURITY
 -- =============================================================================
 
 ALTER TABLE public.spmb ENABLE ROW LEVEL SECURITY;
@@ -169,64 +363,135 @@ ALTER TABLE public.spmb_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.spmb_announcements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.spmb_waves ENABLE ROW LEVEL SECURITY;
 
--- Menghapus kebijakan lama yang menggunakan nama sama
+-- Hapus kebijakan lama agar tidak terjadi konflik kebijakan permisif.
+-- Penghapusan kebijakan tidak menghapus data tabel.
 
-DROP POLICY IF EXISTS "Public access on spmb" ON public.spmb;
-DROP POLICY IF EXISTS "Public access on app_state" ON public.app_state;
-DROP POLICY IF EXISTS "Public access on spmb_registrations" ON public.spmb_registrations;
-DROP POLICY IF EXISTS "Public access on spmb_settings" ON public.spmb_settings;
-DROP POLICY IF EXISTS "Public access on spmb_announcements" ON public.spmb_announcements;
-DROP POLICY IF EXISTS "Public access on spmb_waves" ON public.spmb_waves;
+DO $$
+DECLARE
+    policy_record RECORD;
+BEGIN
+    FOR policy_record IN
+        SELECT schemaname, tablename, policyname
+        FROM pg_policies
+        WHERE schemaname = 'public'
+        AND tablename IN (
+            'spmb',
+            'app_state',
+            'spmb_registrations',
+            'spmb_settings',
+            'spmb_announcements',
+            'spmb_waves'
+        )
+    LOOP
+        EXECUTE format(
+            'DROP POLICY IF EXISTS %I ON %I.%I',
+            policy_record.policyname,
+            policy_record.schemaname,
+            policy_record.tablename
+        );
+    END LOOP;
+END;
+$$;
 
--- Kebijakan multi-guest publik
+-- Data konfigurasi publik dapat dibaca pengunjung.
+CREATE POLICY "Public read spmb"
+ON public.spmb
+FOR SELECT
+TO anon, authenticated
+USING (true);
 
-CREATE POLICY "Public access on spmb"
+CREATE POLICY "Public read app_state"
+ON public.app_state
+FOR SELECT
+TO anon, authenticated
+USING (true);
+
+CREATE POLICY "Public read settings"
+ON public.spmb_settings
+FOR SELECT
+TO anon, authenticated
+USING (true);
+
+CREATE POLICY "Public read announcements"
+ON public.spmb_announcements
+FOR SELECT
+TO anon, authenticated
+USING (is_active = TRUE);
+
+CREATE POLICY "Public read waves"
+ON public.spmb_waves
+FOR SELECT
+TO anon, authenticated
+USING (true);
+
+-- Pengunjung boleh mengirim pendaftaran baru.
+-- Data pribadi pendaftar tidak dapat dibaca oleh pengunjung anonim.
+CREATE POLICY "Public insert registrations"
+ON public.spmb_registrations
+FOR INSERT
+TO anon, authenticated
+WITH CHECK (true);
+
+-- Pengelolaan data hanya untuk pengguna yang sudah login.
+CREATE POLICY "Authenticated manage spmb"
 ON public.spmb
 FOR ALL
-TO anon, authenticated
+TO authenticated
 USING (true)
 WITH CHECK (true);
 
-CREATE POLICY "Public access on app_state"
+CREATE POLICY "Authenticated manage app_state"
 ON public.app_state
 FOR ALL
-TO anon, authenticated
+TO authenticated
 USING (true)
 WITH CHECK (true);
 
-CREATE POLICY "Public access on spmb_registrations"
+CREATE POLICY "Authenticated manage registrations"
 ON public.spmb_registrations
 FOR ALL
-TO anon, authenticated
+TO authenticated
 USING (true)
 WITH CHECK (true);
 
-CREATE POLICY "Public access on spmb_settings"
+CREATE POLICY "Authenticated manage settings"
 ON public.spmb_settings
 FOR ALL
-TO anon, authenticated
+TO authenticated
 USING (true)
 WITH CHECK (true);
 
-CREATE POLICY "Public access on spmb_announcements"
+CREATE POLICY "Authenticated manage announcements"
 ON public.spmb_announcements
 FOR ALL
-TO anon, authenticated
+TO authenticated
 USING (true)
 WITH CHECK (true);
 
-CREATE POLICY "Public access on spmb_waves"
+CREATE POLICY "Authenticated manage waves"
 ON public.spmb_waves
 FOR ALL
-TO anon, authenticated
+TO authenticated
 USING (true)
 WITH CHECK (true);
 
 -- =============================================================================
--- 9. HAK AKSES TABEL
+-- 12. HAK AKSES DATABASE
 -- =============================================================================
 
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
+
+GRANT SELECT
+ON public.spmb,
+   public.app_state,
+   public.spmb_settings,
+   public.spmb_announcements,
+   public.spmb_waves
+TO anon, authenticated;
+
+GRANT INSERT
+ON public.spmb_registrations
+TO anon, authenticated;
 
 GRANT SELECT, INSERT, UPDATE, DELETE
 ON public.spmb,
@@ -235,43 +500,12 @@ ON public.spmb,
    public.spmb_settings,
    public.spmb_announcements,
    public.spmb_waves
-TO anon, authenticated;
+TO authenticated;
 
 -- =============================================================================
--- 10. AKTIFKAN SUPABASE REALTIME
--- =============================================================================
-
-DO $$
-DECLARE
-    tbl TEXT;
-BEGIN
-    FOREACH tbl IN ARRAY ARRAY[
-        'spmb',
-        'app_state',
-        'spmb_registrations',
-        'spmb_settings',
-        'spmb_announcements',
-        'spmb_waves'
-    ]
-    LOOP
-        IF NOT EXISTS (
-            SELECT 1
-            FROM pg_publication_tables
-            WHERE pubname = 'supabase_realtime'
-              AND schemaname = 'public'
-              AND tablename = tbl
-        ) THEN
-            EXECUTE format(
-                'ALTER PUBLICATION supabase_realtime ADD TABLE public.%I',
-                tbl
-            );
-        END IF;
-    END LOOP;
-END;
-$$;
-
--- =============================================================================
--- 11. DATA AWAL SPMB
+-- 13. DATA AWAL SPMB
+-- HANYA DITAMBAHKAN JIKA BELUM ADA.
+-- DATA YANG SUDAH ADA TIDAK DITIMPA.
 -- =============================================================================
 
 INSERT INTO public.spmb (id, data)
@@ -391,12 +625,12 @@ VALUES (
         "primaryColor": "#2563eb",
         "whatsappGroupUrl": "https://chat.whatsapp.com/invite/spmb-smk-lentera-bangsa-2-2026"
     }
-}'::jsonb
+}'::JSONB
 )
 ON CONFLICT (id) DO NOTHING;
 
 -- =============================================================================
--- 12. SINKRONISASI APP_STATE
+-- 14. SINKRONISASI APP_STATE
 -- =============================================================================
 
 INSERT INTO public.app_state (id, data)
@@ -406,7 +640,7 @@ WHERE id = 'main_state'
 ON CONFLICT (id) DO NOTHING;
 
 -- =============================================================================
--- 13. PENGATURAN SEKOLAH
+-- 15. PENGATURAN SEKOLAH
 -- =============================================================================
 
 INSERT INTO public.spmb_settings (key, value, updated_by)
@@ -423,13 +657,13 @@ VALUES (
     "whatsappContact": "6281314420312",
     "whatsappGroupUrl": "https://chat.whatsapp.com/invite/spmb-smk-lentera-bangsa-2-2026",
     "isOpen": true
-}'::jsonb,
+}'::JSONB,
 'Inisialisasi Sistem'
 )
 ON CONFLICT (key) DO NOTHING;
 
 -- =============================================================================
--- 14. PENGUMUMAN RESMI
+-- 16. PENGUMUMAN RESMI
 -- =============================================================================
 
 INSERT INTO public.spmb_announcements (
@@ -457,7 +691,58 @@ VALUES (
 ON CONFLICT (id) DO NOTHING;
 
 -- =============================================================================
--- 15. ANALISIS STATISTIK
+-- 17. AKTIVASI SUPABASE REALTIME
+-- =============================================================================
+
+DO $$
+DECLARE
+    tbl TEXT;
+BEGIN
+
+    -- Pastikan publication tersedia.
+    IF EXISTS (
+        SELECT 1
+        FROM pg_publication
+        WHERE pubname = 'supabase_realtime'
+    ) THEN
+
+        FOREACH tbl IN ARRAY ARRAY[
+            'spmb',
+            'app_state',
+            'spmb_registrations',
+            'spmb_settings',
+            'spmb_announcements',
+            'spmb_waves'
+        ]
+        LOOP
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM pg_publication_tables
+                WHERE pubname = 'supabase_realtime'
+                AND schemaname = 'public'
+                AND tablename = tbl
+            ) THEN
+
+                EXECUTE format(
+                    'ALTER PUBLICATION supabase_realtime ADD TABLE public.%I',
+                    tbl
+                );
+
+            END IF;
+
+        END LOOP;
+
+    ELSE
+        RAISE NOTICE
+        'Publication supabase_realtime belum tersedia. Aktivasi perlu dilakukan melalui pengaturan Realtime Supabase.';
+    END IF;
+
+END;
+$$;
+
+-- =============================================================================
+-- 18. ANALISIS DATABASE
 -- =============================================================================
 
 ANALYZE public.spmb;
@@ -467,8 +752,17 @@ ANALYZE public.spmb_settings;
 ANALYZE public.spmb_announcements;
 ANALYZE public.spmb_waves;
 
+-- =============================================================================
+-- 19. SELESAI
+-- =============================================================================
+
 COMMIT;
 
--- =============================================================================
--- SELESAI
--- =============================================================================
+SELECT
+    'DATABASE SPMB BERHASIL DIPERIKSA' AS status,
+    (SELECT COUNT(*) FROM public.spmb) AS total_spmb,
+    (SELECT COUNT(*) FROM public.app_state) AS total_app_state,
+    (SELECT COUNT(*) FROM public.spmb_registrations) AS total_pendaftar,
+    (SELECT COUNT(*) FROM public.spmb_settings) AS total_pengaturan,
+    (SELECT COUNT(*) FROM public.spmb_announcements) AS total_pengumuman,
+    (SELECT COUNT(*) FROM public.spmb_waves) AS total_gelombang;
