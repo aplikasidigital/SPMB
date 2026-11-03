@@ -1,24 +1,43 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * SPMB - Sistem Penerimaan Murid Baru
+ * SMK Lentera Bangsa 2
+ *
+ * Type definitions
+ * Versi: Stabil dan kompatibel dengan struktur data sebelumnya.
  */
 
-export type RegistrationStatus = 'PENDING' | 'DITERIMA' | 'DIBATALKAN' | 'VERIFIKASI_BERKAS';
+// ============================================================
+// 1. STATUS PENDAFTARAN
+// ============================================================
+
+export type RegistrationStatus =
+  | 'PENDING'
+  | 'DITERIMA'
+  | 'DIBATALKAN'
+  | 'VERIFIKASI_BERKAS';
+
+// ============================================================
+// 2. DATA PENDAFTARAN SISWA
+// ============================================================
 
 export interface StudentRegistration {
   id: string;
-  registrationNumber: string; // e.g. LB2-2026-0101
+  registrationNumber: string;
   createdAt: string;
   updatedAt: string;
   status: RegistrationStatus;
   statusNote?: string;
-  wave: string; // e.g. 'Gelombang 1'
+  wave: string;
 
   // 1. Data Calon Siswa
   personalData: {
-    familyCardNumber?: string; // Nomor Kartu Keluarga (16 digit)
+    familyCardNumber?: string;
     nik: string;
-    nisn?: string; // NISN tidak wajib diisi
+    nisn?: string;
     fullName: string;
     gender: 'Laki-laki' | 'Perempuan';
     birthPlace: string;
@@ -38,13 +57,19 @@ export interface StudentRegistration {
 
   // 2. Data Orang Tua / Wali
   parentData: {
-    fatherName: string; // Ayah / Wali
+    fatherName: string;
     fatherJob: string;
     fatherPhone: string;
-    motherName: string; // Ibu / Wali
+    motherName: string;
     motherJob: string;
     motherPhone: string;
-    livingStatus?: 'Tinggal bersama' | 'Keluarga lengkap' | 'Yatim' | 'Piatu' | 'Yatim Piatu' | string; // Status Tinggal
+    livingStatus?:
+      | 'Tinggal bersama'
+      | 'Keluarga lengkap'
+      | 'Yatim'
+      | 'Piatu'
+      | 'Yatim Piatu'
+      | string;
     guardianName?: string;
     guardianPhone?: string;
     monthlyIncome: string;
@@ -66,21 +91,27 @@ export interface StudentRegistration {
     secondChoice: string;
   };
 
-  // 5. Berkas Unggahan (Base64 data or URL)
+  // 5. Berkas Unggahan
+  // Mendukung URL maupun Base64
   documents: {
-    photoUrl?: string; // Pas Foto 3x4
-    familyCardUrl?: string; // Kartu Keluarga
-    birthCertUrl?: string; // Akta Lahir
-    parentKtpUrl?: string; // KTP Orang Tua
-    reportOrDiplomaUrl?: string; // Ijazah / SKL / Rapor
-    kipKpsUrl?: string; // KIP / KPS
+    photoUrl?: string;
+    familyCardUrl?: string;
+    birthCertUrl?: string;
+    parentKtpUrl?: string;
+    reportOrDiplomaUrl?: string;
+    kipKpsUrl?: string;
   };
 
-  // Data tambahan kustom yang ditambahkan Admin
+  // Data tambahan kustom dari Admin
   customFields?: Record<string, string>;
+
   verifiedBy?: string;
   lastNotifiedAt?: string;
 }
+
+// ============================================================
+// 3. PROGRAM KEAHLIAN / JURUSAN
+// ============================================================
 
 export interface MajorProgram {
   id: string;
@@ -97,19 +128,27 @@ export interface MajorProgram {
   bannerImage: string;
 }
 
+// ============================================================
+// 4. GELOMBANG PENDAFTARAN
+// ============================================================
+
 export interface SchoolWave {
   id: string;
   name: string;
   startDate: string;
   endDate: string;
-  startTime?: string; // e.g. "08:00"
-  endTime?: string; // e.g. "23:59"
+  startTime?: string;
+  endTime?: string;
   isActive: boolean;
   benefits: string;
   quota?: number;
   fee?: string;
   discountNote?: string;
 }
+
+// ============================================================
+// 5. JALUR PENDAFTARAN
+// ============================================================
 
 export interface AdmissionTrack {
   id: string;
@@ -122,17 +161,35 @@ export interface AdmissionTrack {
   quota?: number;
 }
 
+// ============================================================
+// 6. KATEGORI BIAYA
+// ============================================================
+
 export interface FeeCategory {
   id: string;
   name: string;
   amount: string;
-  period: 'Satu Kali' | 'Per Bulan' | 'Per Semester' | 'Per Tahun';
+  period:
+    | 'Satu Kali'
+    | 'Per Bulan'
+    | 'Per Semester'
+    | 'Per Tahun';
   description: string;
   isMandatory: boolean;
   notes?: string;
 }
 
-export type FormFieldType = 'text' | 'number' | 'select' | 'date' | 'textarea' | 'file';
+// ============================================================
+// 7. KONFIGURASI FORMULIR
+// ============================================================
+
+export type FormFieldType =
+  | 'text'
+  | 'number'
+  | 'select'
+  | 'date'
+  | 'textarea'
+  | 'file';
 
 export interface FormFieldConfig {
   id: string;
@@ -140,10 +197,19 @@ export interface FormFieldConfig {
   placeholder?: string;
   required?: boolean;
   fieldType?: FormFieldType;
-  options?: string[]; // for select/dropdown
-  section?: 'personal' | 'parent' | 'school' | 'additional' | 'document';
+  options?: string[];
+  section?:
+    | 'personal'
+    | 'parent'
+    | 'school'
+    | 'additional'
+    | 'document';
   isActive?: boolean;
 }
+
+// ============================================================
+// 8. PENGATURAN SEKOLAH
+// ============================================================
 
 export interface SchoolSettings {
   schoolName: string;
@@ -160,34 +226,58 @@ export interface SchoolSettings {
   headmasterNip: string;
   committeeHeadName: string;
   logoUrl: string;
-  promoVideoUrl: string; // YouTube embed or watch link
+  promoVideoUrl: string;
   tiktokUrl: string;
   instagramUrl: string;
   facebookUrl: string;
   announcementTicker: string;
   primaryColor: string;
   googleSheetSyncUrl: string;
+
   customColumns: FormFieldConfig[];
+
   promoMediaUploads?: PromoMediaItem[];
   announcements?: SchoolAnnouncement[];
-  appBackgroundUrl?: string; // URL / Base64 foto background aplikasi
-  appBackgroundOpacity?: number; // Opacity overlay background
-  whatsappGroupUrl?: string; // Link invite WhatsApp Group Calon Siswa Baru (diinput oleh Admin)
+
+  // Background aplikasi
+  appBackgroundUrl?: string;
+  appBackgroundOpacity?: number;
+
+  // Grup WhatsApp calon siswa
+  whatsappGroupUrl?: string;
 }
+
+// ============================================================
+// 9. MEDIA PROMOSI
+// ============================================================
 
 export interface PromoMediaItem {
   id: string;
   title: string;
-  category: 'Brosur' | 'Spanduk' | 'Poster' | 'Banner';
+  category:
+    | 'Brosur'
+    | 'Spanduk'
+    | 'Poster'
+    | 'Banner';
   imageUrl: string;
   uploadDate: string;
   description?: string;
 }
 
+// ============================================================
+// 10. PENGUMUMAN SEKOLAH
+// ============================================================
+
 export interface SchoolAnnouncement {
   id: string;
   title: string;
-  category: 'PENTING' | 'INFORMASI' | 'JADWAL_TES' | 'KELULUSAN' | 'DAFTAR_ULANG' | 'BEASISWA';
+  category:
+    | 'PENTING'
+    | 'INFORMASI'
+    | 'JADWAL_TES'
+    | 'KELULUSAN'
+    | 'DAFTAR_ULANG'
+    | 'BEASISWA';
   content: string;
   imageUrl?: string;
   publishedDate: string;
@@ -196,7 +286,13 @@ export interface SchoolAnnouncement {
   isActive: boolean;
 }
 
-export type AdminRole = 'SUPER_ADMIN' | 'SHADOW_ADMIN';
+// ============================================================
+// 11. AKUN ADMIN
+// ============================================================
+
+export type AdminRole =
+  | 'SUPER_ADMIN'
+  | 'SHADOW_ADMIN';
 
 export interface AdminAccount {
   id: string;
@@ -207,6 +303,10 @@ export interface AdminAccount {
   lastLogin?: string;
 }
 
+// ============================================================
+// 12. LOG AKTIVITAS SISTEM
+// ============================================================
+
 export interface ActivityLog {
   id: string;
   timestamp: string;
@@ -214,5 +314,11 @@ export interface ActivityLog {
   performedBy: string;
   targetId?: string;
   details: string;
-  type: 'REGISTRATION' | 'UPDATE' | 'STATUS_CHANGE' | 'DELETE' | 'ADMIN_LOGIN' | 'SETTINGS_CHANGE';
+  type:
+    | 'REGISTRATION'
+    | 'UPDATE'
+    | 'STATUS_CHANGE'
+    | 'DELETE'
+    | 'ADMIN_LOGIN'
+    | 'SETTINGS_CHANGE';
 }
