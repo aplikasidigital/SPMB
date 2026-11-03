@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { AdminAccount } from '../types/spmb';
 import { StorageService } from '../services/storageService';
 import {
@@ -33,18 +33,21 @@ export const AdminLoginModal: React.FC<Props> = ({
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Mencegah submit berulang sebelum React selesai memperbarui state.
+  const isSubmitting = useRef(false);
+
   const handleSubmit = useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
 
-      // Mencegah proses login berjalan berulang kali.
-      if (isLoading) return;
-
-      setError('');
+      if (isSubmitting.current) return;
 
       const cleanUser = username.trim().toLowerCase();
       const cleanPass = password.trim();
 
+      setError('');
+
+      // Validasi input.
       if (!cleanUser) {
         setError('Username wajib diisi.');
         return;
@@ -55,10 +58,12 @@ export const AdminLoginModal: React.FC<Props> = ({
         return;
       }
 
+      // Kunci proses login.
+      isSubmitting.current = true;
       setIsLoading(true);
 
-      // Menjalankan autentikasi secara aman.
       try {
+        // Mengambil data admin tanpa mengubah data yang sudah ada.
         const admins = StorageService.getAdmins() || [];
 
         const matched = admins.find(
@@ -74,11 +79,12 @@ export const AdminLoginModal: React.FC<Props> = ({
           return;
         }
 
+        // Identifikasi jenis akun.
         const isShadow = matched
           ? matched.role === 'SHADOW_ADMIN'
           : cleanUser === 'petugas_verifikasi';
 
-        // Mempertahankan data akun yang sudah terdaftar.
+        // Mempertahankan akun yang sudah terdaftar.
         const adminSession: AdminAccount = matched || {
           id: 'adm-super',
           username: cleanUser,
@@ -93,10 +99,10 @@ export const AdminLoginModal: React.FC<Props> = ({
             .substring(0, 19),
         };
 
-        // Simpan sesi aktif.
+        // Menyimpan sesi aktif.
         StorageService.setActiveSession(adminSession);
 
-        // Catat aktivitas login.
+        // Mencatat aktivitas login.
         StorageService.addLog({
           action: 'Login Admin Berhasil',
           performedBy: adminSession.fullName,
@@ -108,21 +114,23 @@ export const AdminLoginModal: React.FC<Props> = ({
           type: 'ADMIN_LOGIN',
         });
 
-        // Reset status sebelum masuk ke dashboard.
-        setIsLoading(false);
-
+        // Menyelesaikan proses login.
         onSuccessLogin(adminSession);
+
       } catch (err) {
         console.error('Admin login error:', err);
 
         setError(
           'Terjadi kesalahan saat memproses login. Silakan coba kembali.'
         );
+
       } finally {
+        // Selalu membuka kembali kunci proses.
+        isSubmitting.current = false;
         setIsLoading(false);
       }
     },
-    [username, password, isLoading, onSuccessLogin]
+    [username, password, onSuccessLogin]
   );
 
   return (
@@ -168,6 +176,7 @@ export const AdminLoginModal: React.FC<Props> = ({
         {error && (
           <div
             role="alert"
+            aria-live="polite"
             className="p-3 bg-rose-950/80 border border-rose-800 rounded-xl text-xs text-rose-300 mb-4 flex items-center gap-2"
           >
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
@@ -176,7 +185,11 @@ export const AdminLoginModal: React.FC<Props> = ({
         )}
 
         {/* Form Login */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-4"
+          autoComplete="on"
+        >
 
           {/* Username */}
           <div>
@@ -188,10 +201,11 @@ export const AdminLoginModal: React.FC<Props> = ({
             </label>
 
             <div className="relative">
-              <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+              <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5 pointer-events-none" />
 
               <input
                 id="admin-username"
+                name="username"
                 type="text"
                 autoComplete="username"
                 placeholder="Masukkan ID Petugas"
@@ -217,10 +231,11 @@ export const AdminLoginModal: React.FC<Props> = ({
             </label>
 
             <div className="relative">
-              <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+              <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5 pointer-events-none" />
 
               <input
                 id="admin-password"
+                name="password"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 required
@@ -264,6 +279,7 @@ export const AdminLoginModal: React.FC<Props> = ({
               ? 'Memverifikasi Akses...'
               : 'Masuk ke Dasbor Panitia'}
           </button>
+
         </form>
       </div>
     </div>
